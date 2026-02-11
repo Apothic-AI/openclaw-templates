@@ -14,12 +14,14 @@ function printUsage() {
 
 function getInitPaths() {
   const homeDir = os.homedir();
+  const templatesRoot = path.resolve(__dirname, '..', 'templates');
   return {
     homeDir,
     targetDir: path.join(homeDir, '.openclaw-includes'),
     openclawConfigPath: path.join(homeDir, '.openclaw', 'openclaw.json'),
-    templatesRoot: path.resolve(__dirname, '..', 'templates'),
-    baseTemplatesDir: path.join(path.resolve(__dirname, '..', 'templates'), '.base'),
+    templatesRoot,
+    baseTemplatesDir: path.join(templatesRoot, '.base'),
+    includesTemplatesDir: path.join(templatesRoot, '.includes'),
   };
 }
 
@@ -98,37 +100,37 @@ function getAgentNames(openclawConfigPath, homeDir) {
   return [...new Set(entries.map((entry) => entry.name))];
 }
 
-function getIncludeTemplateFiles(templatesRoot) {
-  if (!fs.existsSync(templatesRoot)) {
-    console.error(`Templates directory not found: ${templatesRoot}`);
+function getEntrypointTemplateFiles(baseTemplatesDir) {
+  if (!fs.existsSync(baseTemplatesDir)) {
+    console.error(`Base templates directory not found: ${baseTemplatesDir}`);
     process.exit(1);
   }
 
-  const includeTemplateFiles = fs
-    .readdirSync(templatesRoot, { withFileTypes: true })
+  const entrypointTemplateFiles = fs
+    .readdirSync(baseTemplatesDir, { withFileTypes: true })
     .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
     .map((entry) => entry.name);
 
-  if (includeTemplateFiles.length === 0) {
-    console.error(`No include template files found in ${templatesRoot}`);
+  if (entrypointTemplateFiles.length === 0) {
+    console.error(`No entrypoint template files found in ${baseTemplatesDir}`);
     process.exit(1);
   }
 
-  return includeTemplateFiles;
+  return entrypointTemplateFiles;
 }
 
-function assertBaseTemplatesDir(baseTemplatesDir) {
-  if (!fs.existsSync(baseTemplatesDir)) {
-    console.error(`Base templates directory not found: ${baseTemplatesDir}`);
+function assertIncludesTemplatesDir(includesTemplatesDir) {
+  if (!fs.existsSync(includesTemplatesDir)) {
+    console.error(`Includes templates directory not found: ${includesTemplatesDir}`);
     process.exit(1);
   }
 }
 
 function initCommand(force) {
-  const { homeDir, targetDir, openclawConfigPath, templatesRoot, baseTemplatesDir } = getInitPaths();
+  const { homeDir, targetDir, baseTemplatesDir, includesTemplatesDir, openclawConfigPath } = getInitPaths();
   const agentNames = getAgentNames(openclawConfigPath, homeDir);
-  const includeTemplateFiles = getIncludeTemplateFiles(templatesRoot);
-  assertBaseTemplatesDir(baseTemplatesDir);
+  const entrypointTemplateFiles = getEntrypointTemplateFiles(baseTemplatesDir);
+  assertIncludesTemplatesDir(includesTemplatesDir);
 
   if (fs.existsSync(targetDir)) {
     if (!force) {
@@ -141,14 +143,14 @@ function initCommand(force) {
   }
 
   fs.mkdirSync(targetDir, { recursive: true });
-  fs.cpSync(baseTemplatesDir, path.join(targetDir, '.base'), { recursive: true });
+  fs.cpSync(includesTemplatesDir, path.join(targetDir, '.includes'), { recursive: true });
 
   for (const agentName of agentNames) {
     const agentTargetDir = path.join(targetDir, agentName);
     fs.mkdirSync(agentTargetDir, { recursive: true });
 
-    for (const fileName of includeTemplateFiles) {
-      fs.copyFileSync(path.join(templatesRoot, fileName), path.join(agentTargetDir, fileName));
+    for (const fileName of entrypointTemplateFiles) {
+      fs.copyFileSync(path.join(baseTemplatesDir, fileName), path.join(agentTargetDir, fileName));
     }
   }
 
@@ -180,10 +182,17 @@ function compileMarkdownFile(sourceFilePath) {
 function buildCommand() {
   const { homeDir, targetDir, openclawConfigPath } = getInitPaths();
   const agentEntries = getAgentEntries(openclawConfigPath, homeDir);
+  const includesDir = path.join(targetDir, '.includes');
 
   if (!fs.existsSync(targetDir)) {
     console.error(`Includes directory not found: ${targetDir}`);
     console.error('Run `openclaw-includes init` first.');
+    process.exit(1);
+  }
+
+  if (!fs.existsSync(includesDir) || !fs.statSync(includesDir).isDirectory()) {
+    console.error(`Shared includes directory not found: ${includesDir}`);
+    console.error('Run `openclaw-includes init --force` to regenerate templates.');
     process.exit(1);
   }
 
@@ -229,11 +238,11 @@ function buildCommand() {
 }
 
 function doctorCommand() {
-  const { homeDir, openclawConfigPath, templatesRoot, baseTemplatesDir } = getInitPaths();
+  const { homeDir, openclawConfigPath, baseTemplatesDir, includesTemplatesDir } = getInitPaths();
   const list = parseOpenclawConfig(openclawConfigPath);
   const agentNames = getAgentNames(openclawConfigPath, homeDir);
-  const includeTemplateFiles = getIncludeTemplateFiles(templatesRoot);
-  assertBaseTemplatesDir(baseTemplatesDir);
+  const entrypointTemplateFiles = getEntrypointTemplateFiles(baseTemplatesDir);
+  assertIncludesTemplatesDir(includesTemplatesDir);
 
   const invalidWorkspaceCount = list.filter(
     (agent) => !agent || typeof agent.workspace !== 'string' || agent.workspace.trim() === '',
@@ -242,7 +251,7 @@ function doctorCommand() {
   console.log('Doctor checks passed');
   console.log(`Config: ${openclawConfigPath}`);
   console.log(`Agents found: ${agentNames.length}`);
-  console.log(`Include templates: ${includeTemplateFiles.length}`);
+  console.log(`Entrypoint templates (.base): ${entrypointTemplateFiles.length}`);
   if (invalidWorkspaceCount > 0) {
     console.log(`Skipped invalid workspace entries: ${invalidWorkspaceCount}`);
   }
