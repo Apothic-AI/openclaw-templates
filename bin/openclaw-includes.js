@@ -9,7 +9,7 @@ function printUsage() {
   console.log('Usage:');
   console.log('  openclaw-includes init [--force]');
   console.log('  openclaw-includes doctor');
-  console.log('  openclaw-includes build [--overwrite] [--wipe]');
+  console.log('  openclaw-includes build [workspace] [--overwrite] [--wipe]');
 }
 
 function getInitPaths() {
@@ -57,34 +57,65 @@ function parseOpenclawConfig(openclawConfigPath) {
     process.exit(1);
   }
 
-  return list;
+  return parsed;
 }
 
 function getAgentEntries(openclawConfigPath, homeDir) {
-  const list = parseOpenclawConfig(openclawConfigPath);
-  const allWorkspaces = list
-    .map((agent) => (agent ? agent.workspace : undefined))
-    .concat(path.join(homeDir, '.openclaw', 'workspace'));
+  const parsed = parseOpenclawConfig(openclawConfigPath);
+  const list = parsed.agents.list;
+  const defaultsWorkspace =
+    parsed &&
+    parsed.agents &&
+    parsed.agents.defaults &&
+    typeof parsed.agents.defaults.workspace === 'string'
+      ? parsed.agents.defaults.workspace
+      : path.join(homeDir, '.openclaw', 'workspace');
   const entries = [];
   const seenWorkspaces = new Set();
+  const seenIds = new Set();
 
-  for (const workspace of allWorkspaces) {
-    if (typeof workspace !== 'string' || workspace.trim() === '') {
+  for (const agent of list) {
+    if (!agent || typeof agent !== 'object') {
       continue;
     }
 
-    const normalizedWorkspace = normalizeWorkspace(workspace);
-    const dirName = path.basename(normalizedWorkspace);
-    const absoluteWorkspace = toAbsoluteWorkspace(normalizedWorkspace, homeDir);
-    if (dirName && dirName !== '.' && dirName !== path.sep) {
-      if (!seenWorkspaces.has(absoluteWorkspace)) {
-        seenWorkspaces.add(absoluteWorkspace);
-        entries.push({
-          name: dirName,
-          workspace: absoluteWorkspace,
-        });
-      }
+    const agentId = typeof agent.id === 'string' && agent.id.trim() !== '' ? agent.id.trim() : undefined;
+    if (!agentId) {
+      continue;
     }
+
+    const rawWorkspace =
+      typeof agent.workspace === 'string' && agent.workspace.trim() !== ''
+        ? agent.workspace
+        : agentId === 'main'
+          ? defaultsWorkspace
+          : undefined;
+    if (typeof rawWorkspace !== 'string' || rawWorkspace.trim() === '') {
+      continue;
+    }
+
+    const normalizedWorkspace = normalizeWorkspace(rawWorkspace);
+    const absoluteWorkspace = toAbsoluteWorkspace(normalizedWorkspace, homeDir);
+    if (!seenWorkspaces.has(absoluteWorkspace) && !seenIds.has(agentId)) {
+      seenWorkspaces.add(absoluteWorkspace);
+      seenIds.add(agentId);
+      entries.push({
+        name: agentId,
+        id: agentId,
+        workspace: absoluteWorkspace,
+      });
+    }
+  }
+
+  const absoluteDefaultsWorkspace = toAbsoluteWorkspace(normalizeWorkspace(defaultsWorkspace), homeDir);
+  if (!seenWorkspaces.has(absoluteDefaultsWorkspace) && !seenIds.has('main')) {
+    seenWorkspaces.add(absoluteDefaultsWorkspace);
+    seenIds.add('main');
+    entries.push({
+      name: 'main',
+      id: 'main',
+      workspace: absoluteDefaultsWorkspace,
+    });
   }
 
   if (entries.length === 0) {
@@ -225,9 +256,35 @@ function clearDirectoryContents(dirPath) {
   }
 }
 
-function buildCommand(allowNonIncludeOverwrite, wipeWorkspaces) {
+function selectBuildTargets(agentEntries, workspaceArg) {
+  if (!workspaceArg) {
+    return agentEntries;
+  }
+
+  const normalizedArg = normalizeWorkspace(workspaceArg);
+  const exactWorkspaceMatches = agentEntries.filter((entry) => normalizeWorkspace(entry.workspace) === normalizedArg);
+  if (exactWorkspaceMatches.length > 0) {
+    return exactWorkspaceMatches;
+  }
+
+  const nameMatches = agentEntries.filter((entry) => entry.id === normalizedArg);
+  if (nameMatches.length === 1) {
+    return nameMatches;
+  }
+
+  if (nameMatches.length > 1) {
+    console.error(`Agent id is ambiguous: ${workspaceArg}.`);
+    console.error('Use an exact workspace path from ~/.openclaw/openclaw.json.');
+    process.exit(1);
+  }
+
+  console.error(`Agent id or workspace path not found in ~/.openclaw/openclaw.json: ${workspaceArg}`);
+  process.exit(1);
+}
+
+function buildCommand(allowNonIncludeOverwrite, wipeWorkspaces, workspaceArg) {
   const { homeDir, targetDir, openclawConfigPath } = getInitPaths();
-  const agentEntries = getAgentEntries(openclawConfigPath, homeDir);
+  const agentEntries = selectBuildTargets(getAgentEntries(openclawConfigPath, homeDir), workspaceArg);
   const includesDir = path.join(targetDir, '.includes');
 
   if (!fs.existsSync(targetDir)) {
@@ -302,7 +359,8 @@ function buildCommand(allowNonIncludeOverwrite, wipeWorkspaces) {
 
 function doctorCommand() {
   const { homeDir, openclawConfigPath, baseTemplatesDir, includesTemplatesDir } = getInitPaths();
-  const list = parseOpenclawConfig(openclawConfigPath);
+  const parsed = parseOpenclawConfig(openclawConfigPath);
+  const list = parsed.agents.list;
   const agentNames = getAgentNames(openclawConfigPath, homeDir);
   const entrypointTemplateFiles = getEntrypointTemplateFiles(baseTemplatesDir);
   assertIncludesTemplatesDir(includesTemplatesDir);
@@ -335,7 +393,17 @@ function main() {
     process.exit(1);
   }
 
-  const flags = args.slice(1);
+  const restArgs = args.slice(1);
+  const flags = [];
+  const positional = [];
+  for (const arg of restArgs) {
+    if (arg.startsWith('--')) {
+      flags.push(arg);
+    } else {
+      positional.push(arg);
+    }
+  }
+
   let validFlags = new Set();
   if (command === 'init') {
     validFlags = new Set(['--force']);
@@ -352,13 +420,25 @@ function main() {
     }
   }
 
+  if (command !== 'build' && positional.length > 0) {
+    console.error(`Unexpected positional argument: ${positional[0]}`);
+    printUsage();
+    process.exit(1);
+  }
+
+  if (command === 'build' && positional.length > 1) {
+    console.error('Too many positional arguments for build.');
+    printUsage();
+    process.exit(1);
+  }
+
   if (command === 'doctor') {
     doctorCommand();
     return;
   }
 
   if (command === 'build') {
-    buildCommand(flags.includes('--overwrite'), flags.includes('--wipe'));
+    buildCommand(flags.includes('--overwrite'), flags.includes('--wipe'), positional[0]);
     return;
   }
 
