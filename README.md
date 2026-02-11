@@ -46,6 +46,7 @@ openclaw-templates --help
 
 ```text
 openclaw-templates init [--force]
+openclaw-templates update
 openclaw-templates doctor
 openclaw-templates build [workspace] [--overwrite] [--wipe] [--force]
 ```
@@ -79,6 +80,18 @@ Validates local setup:
 - `templates/.includes` exists
 
 Outputs a summary with agent count and template count.
+
+### `update`
+
+Adds templates for agent IDs that are present in `~/.openclaw/openclaw.json` but not yet present in `~/.openclaw-templates`.
+
+Behavior:
+
+- Requires `~/.openclaw-templates` to already exist (run `init` first).
+- Creates missing per-agent directories in `~/.openclaw-templates/<agent-id>/`.
+- Copies `templates/.base/*.md` entrypoints only for newly added agents.
+- Does not overwrite existing agent template files/directories.
+- Ensures `~/.openclaw-templates/.includes` exists.
 
 ### `build [workspace] [--overwrite] [--wipe] [--force]`
 
@@ -141,13 +154,16 @@ openclaw-templates doctor
 # 2) Initialize local include workspace
 openclaw-templates init
 
-# 3) Build all agents
+# 3) If new agents are later added to openclaw.json, sync only missing template dirs
+openclaw-templates update
+
+# 4) Build all agents
 openclaw-templates build
 
-# 4) Build a single agent by id
+# 5) Build a single agent by id
 openclaw-templates build tom-assistant
 
-# 5) Build a single explicit workspace path (outside ~/.openclaw requires --force)
+# 6) Build a single explicit workspace path (outside ~/.openclaw requires --force)
 openclaw-templates build /path/to/workspace --force
 ```
 

@@ -9,6 +9,7 @@ const markdownIncludeModulePath = require.resolve('markdown-include');
 function printUsage() {
   console.log('Usage:');
   console.log('  openclaw-templates init [--force]');
+  console.log('  openclaw-templates update');
   console.log('  openclaw-templates doctor');
   console.log('  openclaw-templates build [workspace] [--overwrite] [--wipe] [--force]');
 }
@@ -201,6 +202,45 @@ function initCommand(force) {
   }
 
   console.log(`Initialized ${targetDir}`);
+}
+
+function updateCommand() {
+  const { homeDir, targetDir, baseTemplatesDir, includesTemplatesDir, openclawConfigPath } = getInitPaths();
+  const agentNames = getAgentNames(openclawConfigPath, homeDir);
+  const entrypointTemplateFiles = getEntrypointTemplateFiles(baseTemplatesDir);
+  assertIncludesTemplatesDir(includesTemplatesDir);
+
+  if (!fs.existsSync(targetDir) || !fs.statSync(targetDir).isDirectory()) {
+    console.error(`Templates directory not found: ${targetDir}`);
+    console.error('Run `openclaw-templates init` first.');
+    process.exit(1);
+  }
+
+  const targetIncludesDir = path.join(targetDir, '.includes');
+  if (!fs.existsSync(targetIncludesDir)) {
+    fs.cpSync(includesTemplatesDir, targetIncludesDir, { recursive: true });
+  }
+
+  let addedAgents = 0;
+  for (const agentName of agentNames) {
+    const agentTargetDir = path.join(targetDir, agentName);
+
+    if (fs.existsSync(agentTargetDir)) {
+      if (!fs.statSync(agentTargetDir).isDirectory()) {
+        console.error(`Agent template path exists but is not a directory: ${agentTargetDir}`);
+        process.exit(1);
+      }
+      continue;
+    }
+
+    fs.mkdirSync(agentTargetDir, { recursive: true });
+    for (const fileName of entrypointTemplateFiles) {
+      fs.copyFileSync(path.join(baseTemplatesDir, fileName), path.join(agentTargetDir, fileName));
+    }
+    addedAgents += 1;
+  }
+
+  console.log(`Updated ${targetDir}; added ${addedAgents} agent template director${addedAgents === 1 ? 'y' : 'ies'}.`);
 }
 
 function compileMarkdownFile(sourceFilePath) {
@@ -454,6 +494,10 @@ function buildProgram() {
     .action((options) => {
       initCommand(Boolean(options.force));
     });
+
+  program.command('update').action(() => {
+    updateCommand();
+  });
 
   program.command('doctor').action(() => {
     doctorCommand();

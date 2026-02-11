@@ -78,6 +78,7 @@ test('help output includes all commands and build flags', () => {
 
   assert.equal(result.status, 0);
   assert.match(result.stdout, /openclaw-templates init \[--force\]/);
+  assert.match(result.stdout, /openclaw-templates update/);
   assert.match(result.stdout, /openclaw-templates doctor/);
   assert.match(result.stdout, /openclaw-templates build \[workspace\] \[--overwrite\] \[--wipe\] \[--force\]/);
 });
@@ -126,6 +127,37 @@ test('doctor passes with valid config and templates', (t) => {
   const result = runCli(homeDir, ['doctor']);
   assert.match(result.stdout, /Doctor checks passed/);
   assert.match(result.stdout, /Entrypoint templates \(.base\):/);
+});
+
+test('update fails if init has not been run', (t) => {
+  const homeDir = makeTempHome(t);
+  writeOpenclawConfig(homeDir, createDefaultConfig(homeDir));
+
+  const result = runCli(homeDir, ['update'], 1);
+  assert.match(result.stderr, /Run `openclaw-templates init` first/);
+});
+
+test('update adds template directories for new agents without overwriting existing agents', (t) => {
+  const homeDir = makeTempHome(t);
+  const config = createDefaultConfig(homeDir);
+  writeOpenclawConfig(homeDir, config);
+
+  runCli(homeDir, ['init']);
+
+  const alphaAgentsTemplate = path.join(homeDir, '.openclaw-templates', 'alpha-id', 'AGENTS.md');
+  fs.writeFileSync(alphaAgentsTemplate, 'custom alpha template\n', 'utf8');
+
+  config.agents.list.push({
+    id: 'gamma-id',
+    workspace: path.join(homeDir, '.openclaw', 'workspace-gamma'),
+  });
+  writeOpenclawConfig(homeDir, config);
+
+  const updateResult = runCli(homeDir, ['update']);
+  assert.match(updateResult.stdout, /added 1 agent template directory/);
+
+  assert.ok(fs.existsSync(path.join(homeDir, '.openclaw-templates', 'gamma-id', 'AGENTS.md')));
+  assert.equal(fs.readFileSync(alphaAgentsTemplate, 'utf8'), 'custom alpha template\n');
 });
 
 test('doctor fails on duplicate agent ids in config', (t) => {
