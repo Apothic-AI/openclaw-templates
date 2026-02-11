@@ -79,7 +79,7 @@ test('help output includes all commands and build flags', () => {
   assert.equal(result.status, 0);
   assert.match(result.stdout, /openclaw-includes init \[--force\]/);
   assert.match(result.stdout, /openclaw-includes doctor/);
-  assert.match(result.stdout, /openclaw-includes build \[workspace\] \[--overwrite\] \[--wipe\]/);
+  assert.match(result.stdout, /openclaw-includes build \[workspace\] \[--overwrite\] \[--wipe\] \[--force\]/);
 });
 
 test('doctor fails when config file is missing', (t) => {
@@ -231,6 +231,36 @@ test('build selector supports only agent id or exact workspace path', (t) => {
 
   const byName = runCli(homeDir, ['build', 'alpha-name'], 1);
   assert.match(byName.stderr, /not found/);
+});
+
+test('build workspace-path selector blocks targets outside ~/.openclaw unless --force is supplied', (t) => {
+  const homeDir = makeTempHome(t);
+  const outsideWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'openclaw-includes-outside-'));
+  t.after(() => {
+    fs.rmSync(outsideWorkspace, { recursive: true, force: true });
+  });
+
+  writeOpenclawConfig(homeDir, {
+    agents: {
+      defaults: {
+        workspace: path.join(homeDir, '.openclaw', 'workspace'),
+      },
+      list: [
+        { id: 'main' },
+        { id: 'external-id', workspace: outsideWorkspace },
+      ],
+    },
+  });
+
+  runCli(homeDir, ['init']);
+
+  const blocked = runCli(homeDir, ['build', outsideWorkspace], 1);
+  assert.match(blocked.stderr, /Refusing to target workspace outside/);
+  assert.match(blocked.stderr, /Use --force/);
+  assert.equal(fs.existsSync(path.join(outsideWorkspace, 'AGENTS.md')), false);
+
+  runCli(homeDir, ['build', outsideWorkspace, '--force']);
+  assert.ok(fs.existsSync(path.join(outsideWorkspace, 'AGENTS.md')));
 });
 
 test('commands use HOME override and write only into the temp home', (t) => {

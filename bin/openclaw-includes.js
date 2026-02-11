@@ -9,7 +9,7 @@ function printUsage() {
   console.log('Usage:');
   console.log('  openclaw-includes init [--force]');
   console.log('  openclaw-includes doctor');
-  console.log('  openclaw-includes build [workspace] [--overwrite] [--wipe]');
+  console.log('  openclaw-includes build [workspace] [--overwrite] [--wipe] [--force]');
 }
 
 function getInitPaths() {
@@ -256,14 +256,36 @@ function clearDirectoryContents(dirPath) {
   }
 }
 
-function selectBuildTargets(agentEntries, workspaceArg) {
+function isChildPath(parentDir, childDir) {
+  const resolvedParent = path.resolve(parentDir);
+  const resolvedChild = path.resolve(childDir);
+  const relativePath = path.relative(resolvedParent, resolvedChild);
+  return relativePath !== '' && !relativePath.startsWith('..') && !path.isAbsolute(relativePath);
+}
+
+function selectBuildTargets(agentEntries, workspaceArg, homeDir, allowExternalWorkspacePath) {
   if (!workspaceArg) {
     return agentEntries;
   }
 
   const normalizedArg = normalizeWorkspace(workspaceArg);
+  const isWorkspacePathSelector =
+    path.isAbsolute(workspaceArg) ||
+    workspaceArg.includes('/') ||
+    workspaceArg.includes('\\\\') ||
+    workspaceArg.startsWith('.');
   const exactWorkspaceMatches = agentEntries.filter((entry) => normalizeWorkspace(entry.workspace) === normalizedArg);
   if (exactWorkspaceMatches.length > 0) {
+    if (isWorkspacePathSelector && !allowExternalWorkspacePath) {
+      const openclawRoot = path.join(homeDir, '.openclaw');
+      for (const entry of exactWorkspaceMatches) {
+        if (!isChildPath(openclawRoot, entry.workspace)) {
+          console.error(`Refusing to target workspace outside ${openclawRoot}: ${entry.workspace}`);
+          console.error('Use --force to allow building to workspace paths outside ~/.openclaw.');
+          process.exit(1);
+        }
+      }
+    }
     return exactWorkspaceMatches;
   }
 
@@ -282,9 +304,14 @@ function selectBuildTargets(agentEntries, workspaceArg) {
   process.exit(1);
 }
 
-function buildCommand(allowNonIncludeOverwrite, wipeWorkspaces, workspaceArg) {
+function buildCommand(allowNonIncludeOverwrite, wipeWorkspaces, workspaceArg, allowExternalWorkspacePath) {
   const { homeDir, targetDir, openclawConfigPath } = getInitPaths();
-  const agentEntries = selectBuildTargets(getAgentEntries(openclawConfigPath, homeDir), workspaceArg);
+  const agentEntries = selectBuildTargets(
+    getAgentEntries(openclawConfigPath, homeDir),
+    workspaceArg,
+    homeDir,
+    allowExternalWorkspacePath,
+  );
   const includesDir = path.join(targetDir, '.includes');
 
   if (!fs.existsSync(targetDir)) {
@@ -409,7 +436,7 @@ function main() {
     validFlags = new Set(['--force']);
   }
   if (command === 'build') {
-    validFlags = new Set(['--overwrite', '--wipe']);
+    validFlags = new Set(['--overwrite', '--wipe', '--force']);
   }
 
   for (const flag of flags) {
@@ -438,7 +465,7 @@ function main() {
   }
 
   if (command === 'build') {
-    buildCommand(flags.includes('--overwrite'), flags.includes('--wipe'), positional[0]);
+    buildCommand(flags.includes('--overwrite'), flags.includes('--wipe'), positional[0], flags.includes('--force'));
     return;
   }
 
