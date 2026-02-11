@@ -2,13 +2,33 @@
   "name": "openclaw-templates",
   "version": "0.1.0",
   "description": "CLI utility for bootstrapping OpenClaw include templates",
+  "keywords": [
+    "openclaw",
+    "cli",
+    "templates",
+    "markdown",
+    "agent"
+  ],
+  "homepage": "https://github.com/Apothic-AI/openclaw-templates#readme",
+  "bugs": {
+    "url": "https://github.com/Apothic-AI/openclaw-templates/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Apothic-AI/openclaw-templates.git"
+  },
+  "files": [
+    "bin",
+    "templates",
+    "README.md",
+    "LICENSE"
+  ],
   "bin": {
     "openclaw-templates": "bin/openclaw-templates.js"
   },
   "scripts": {
     "test": "node --test"
   },
-  "keywords": [],
   "author": "",
   "license": "Apache-2.0",
   "packageManager": "pnpm@10.28.2",
