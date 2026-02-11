@@ -128,6 +128,24 @@ test('doctor passes with valid config and templates', (t) => {
   assert.match(result.stdout, /Entrypoint templates \(.base\):/);
 });
 
+test('doctor fails on duplicate agent ids in config', (t) => {
+  const homeDir = makeTempHome(t);
+  writeOpenclawConfig(homeDir, {
+    agents: {
+      defaults: {
+        workspace: path.join(homeDir, '.openclaw', 'workspace'),
+      },
+      list: [
+        { id: 'dup-id', workspace: path.join(homeDir, '.openclaw', 'workspace-a') },
+        { id: 'dup-id', workspace: path.join(homeDir, '.openclaw', 'workspace-b') },
+      ],
+    },
+  });
+
+  const result = runCli(homeDir, ['doctor'], 1);
+  assert.match(result.stderr, /Duplicate agent id/);
+});
+
 test('build fails if init has not been run', (t) => {
   const homeDir = makeTempHome(t);
   writeOpenclawConfig(homeDir, createDefaultConfig(homeDir));

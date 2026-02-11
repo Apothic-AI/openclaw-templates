@@ -60,6 +60,10 @@ function parseOpenclawConfig(openclawConfigPath) {
   return parsed;
 }
 
+function getAgentId(agent) {
+  return typeof agent.id === 'string' && agent.id.trim() !== '' ? agent.id.trim() : undefined;
+}
+
 function getAgentEntries(openclawConfigPath, homeDir) {
   const parsed = parseOpenclawConfig(openclawConfigPath);
   const list = parsed.agents.list;
@@ -73,13 +77,14 @@ function getAgentEntries(openclawConfigPath, homeDir) {
   const entries = [];
   const seenWorkspaces = new Set();
   const seenIds = new Set();
+  const workspaceToAgentId = new Map();
 
   for (const agent of list) {
     if (!agent || typeof agent !== 'object') {
       continue;
     }
 
-    const agentId = typeof agent.id === 'string' && agent.id.trim() !== '' ? agent.id.trim() : undefined;
+    const agentId = getAgentId(agent);
     if (!agentId) {
       continue;
     }
@@ -96,15 +101,25 @@ function getAgentEntries(openclawConfigPath, homeDir) {
 
     const normalizedWorkspace = normalizeWorkspace(rawWorkspace);
     const absoluteWorkspace = toAbsoluteWorkspace(normalizedWorkspace, homeDir);
-    if (!seenWorkspaces.has(absoluteWorkspace) && !seenIds.has(agentId)) {
-      seenWorkspaces.add(absoluteWorkspace);
-      seenIds.add(agentId);
-      entries.push({
-        name: agentId,
-        id: agentId,
-        workspace: absoluteWorkspace,
-      });
+    if (seenIds.has(agentId)) {
+      console.error(`Duplicate agent id in ${openclawConfigPath}: ${agentId}`);
+      process.exit(1);
     }
+    if (workspaceToAgentId.has(absoluteWorkspace)) {
+      console.error(
+        `Duplicate workspace in ${openclawConfigPath}: ${absoluteWorkspace} (agents: ${workspaceToAgentId.get(absoluteWorkspace)}, ${agentId})`,
+      );
+      process.exit(1);
+    }
+
+    seenWorkspaces.add(absoluteWorkspace);
+    seenIds.add(agentId);
+    workspaceToAgentId.set(absoluteWorkspace, agentId);
+    entries.push({
+      name: agentId,
+      id: agentId,
+      workspace: absoluteWorkspace,
+    });
   }
 
   const absoluteDefaultsWorkspace = toAbsoluteWorkspace(normalizeWorkspace(defaultsWorkspace), homeDir);
@@ -127,8 +142,7 @@ function getAgentEntries(openclawConfigPath, homeDir) {
 }
 
 function getAgentNames(openclawConfigPath, homeDir) {
-  const entries = getAgentEntries(openclawConfigPath, homeDir);
-  return [...new Set(entries.map((entry) => entry.name))];
+  return getAgentEntries(openclawConfigPath, homeDir).map((entry) => entry.name);
 }
 
 function getEntrypointTemplateFiles(baseTemplatesDir) {
@@ -220,7 +234,9 @@ function listFilesRecursive(rootDir) {
   const files = [];
 
   function walk(currentDir, relativeDir) {
-    const entries = fs.readdirSync(currentDir, { withFileTypes: true });
+    const entries = fs
+      .readdirSync(currentDir, { withFileTypes: true })
+      .sort((a, b) => a.name.localeCompare(b.name));
     for (const entry of entries) {
       const absolutePath = path.join(currentDir, entry.name);
       const relativePath = relativeDir ? path.join(relativeDir, entry.name) : entry.name;
@@ -392,9 +408,16 @@ function doctorCommand() {
   const entrypointTemplateFiles = getEntrypointTemplateFiles(baseTemplatesDir);
   assertIncludesTemplatesDir(includesTemplatesDir);
 
-  const invalidWorkspaceCount = list.filter(
-    (agent) => !agent || typeof agent.workspace !== 'string' || agent.workspace.trim() === '',
-  ).length;
+  const invalidWorkspaceCount = list.filter((agent) => {
+    if (!agent || typeof agent !== 'object') {
+      return true;
+    }
+    const hasExplicitWorkspace = typeof agent.workspace === 'string' && agent.workspace.trim() !== '';
+    if (hasExplicitWorkspace) {
+      return false;
+    }
+    return getAgentId(agent) !== 'main';
+  }).length;
 
   console.log('Doctor checks passed');
   console.log(`Config: ${openclawConfigPath}`);
