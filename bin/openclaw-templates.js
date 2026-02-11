@@ -8,9 +8,9 @@ const markdownIncludeModulePath = require.resolve('markdown-include');
 
 function printUsage() {
   console.log('Usage:');
-  console.log('  openclaw-includes init [--force]');
-  console.log('  openclaw-includes doctor');
-  console.log('  openclaw-includes build [workspace] [--overwrite] [--wipe] [--force]');
+  console.log('  openclaw-templates init [--force]');
+  console.log('  openclaw-templates doctor');
+  console.log('  openclaw-templates build [workspace] [--overwrite] [--wipe] [--force]');
 }
 
 function getInitPaths() {
@@ -18,7 +18,7 @@ function getInitPaths() {
   const templatesRoot = path.resolve(__dirname, '..', 'templates');
   return {
     homeDir,
-    targetDir: path.join(homeDir, '.openclaw-includes'),
+    targetDir: path.join(homeDir, '.openclaw-templates'),
     openclawConfigPath: path.join(homeDir, '.openclaw', 'openclaw.json'),
     templatesRoot,
     baseTemplatesDir: path.join(templatesRoot, '.base'),
@@ -342,13 +342,13 @@ function buildCommand(allowNonIncludeOverwrite, wipeWorkspaces, workspaceArg, al
 
   if (!fs.existsSync(targetDir)) {
     console.error(`Includes directory not found: ${targetDir}`);
-    console.error('Run `openclaw-includes init` first.');
+    console.error('Run `openclaw-templates init` first.');
     process.exit(1);
   }
 
   if (!fs.existsSync(includesDir) || !fs.statSync(includesDir).isDirectory()) {
     console.error(`Shared includes directory not found: ${includesDir}`);
-    console.error('Run `openclaw-includes init --force` to regenerate templates.');
+    console.error('Run `openclaw-templates init --force` to regenerate templates.');
     process.exit(1);
   }
 
@@ -359,7 +359,7 @@ function buildCommand(allowNonIncludeOverwrite, wipeWorkspaces, workspaceArg, al
     const agentTemplatesDir = path.join(targetDir, entry.name);
     if (!fs.existsSync(agentTemplatesDir) || !fs.statSync(agentTemplatesDir).isDirectory()) {
       console.error(`Template directory not found for agent ${entry.name}: ${agentTemplatesDir}`);
-      console.error('Run `openclaw-includes init --force` to regenerate templates.');
+      console.error('Run `openclaw-templates init --force` to regenerate templates.');
       process.exit(1);
     }
 
@@ -445,12 +445,12 @@ function doctorCommand() {
 
 function buildProgram() {
   const program = new Command();
-  program.name('openclaw-includes');
+  program.name('openclaw-templates');
   program.showHelpAfterError();
 
   program
     .command('init')
-    .option('--force', 'Overwrite existing ~/.openclaw-includes')
+    .option('--force', 'Overwrite existing ~/.openclaw-templates')
     .action((options) => {
       initCommand(Boolean(options.force));
     });

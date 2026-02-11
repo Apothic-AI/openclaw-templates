@@ -1,9 +1,9 @@
 {
-  "name": "openclaw-includes",
+  "name": "openclaw-templates",
   "version": "1.0.0",
   "description": "CLI utility for bootstrapping OpenClaw include templates",
   "bin": {
-    "openclaw-includes": "bin/openclaw-includes.js"
+    "openclaw-templates": "bin/openclaw-templates.js"
   },
   "scripts": {
     "test": "node --test"

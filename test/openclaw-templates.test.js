@@ -6,10 +6,10 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const repoRoot = path.resolve(__dirname, '..');
-const cliPath = path.join(repoRoot, 'bin', 'openclaw-includes.js');
+const cliPath = path.join(repoRoot, 'bin', 'openclaw-templates.js');
 
 function makeTempHome(t) {
-  const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'openclaw-includes-test-'));
+  const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'openclaw-templates-test-'));
   t.after(() => {
     fs.rmSync(tempHome, { recursive: true, force: true });
   });
@@ -77,9 +77,9 @@ test('help output includes all commands and build flags', () => {
   });
 
   assert.equal(result.status, 0);
-  assert.match(result.stdout, /openclaw-includes init \[--force\]/);
-  assert.match(result.stdout, /openclaw-includes doctor/);
-  assert.match(result.stdout, /openclaw-includes build \[workspace\] \[--overwrite\] \[--wipe\] \[--force\]/);
+  assert.match(result.stdout, /openclaw-templates init \[--force\]/);
+  assert.match(result.stdout, /openclaw-templates doctor/);
+  assert.match(result.stdout, /openclaw-templates build \[workspace\] \[--overwrite\] \[--wipe\] \[--force\]/);
 });
 
 test('doctor fails when config file is missing', (t) => {
@@ -88,19 +88,19 @@ test('doctor fails when config file is missing', (t) => {
   assert.match(result.stderr, /Config file not found/);
 });
 
-test('init creates .openclaw-includes with .includes and one directory per agent id', (t) => {
+test('init creates .openclaw-templates with .includes and one directory per agent id', (t) => {
   const homeDir = makeTempHome(t);
   writeOpenclawConfig(homeDir, createDefaultConfig(homeDir));
 
   runCli(homeDir, ['init']);
 
-  const includesDir = path.join(homeDir, '.openclaw-includes', '.includes');
+  const includesDir = path.join(homeDir, '.openclaw-templates', '.includes');
   assert.ok(fs.existsSync(includesDir));
   assert.ok(fs.existsSync(path.join(includesDir, 'AGENTS', 'HEADER.md')));
 
-  assert.ok(fs.existsSync(path.join(homeDir, '.openclaw-includes', 'main', 'AGENTS.md')));
-  assert.ok(fs.existsSync(path.join(homeDir, '.openclaw-includes', 'alpha-id', 'AGENTS.md')));
-  assert.ok(fs.existsSync(path.join(homeDir, '.openclaw-includes', 'beta-id', 'AGENTS.md')));
+  assert.ok(fs.existsSync(path.join(homeDir, '.openclaw-templates', 'main', 'AGENTS.md')));
+  assert.ok(fs.existsSync(path.join(homeDir, '.openclaw-templates', 'alpha-id', 'AGENTS.md')));
+  assert.ok(fs.existsSync(path.join(homeDir, '.openclaw-templates', 'beta-id', 'AGENTS.md')));
 });
 
 test('init requires --force to recreate an existing target directory', (t) => {
@@ -109,7 +109,7 @@ test('init requires --force to recreate an existing target directory', (t) => {
 
   runCli(homeDir, ['init']);
 
-  const marker = path.join(homeDir, '.openclaw-includes', 'alpha-id', 'marker.txt');
+  const marker = path.join(homeDir, '.openclaw-templates', 'alpha-id', 'marker.txt');
   fs.writeFileSync(marker, 'remove me', 'utf8');
 
   const secondInit = runCli(homeDir, ['init'], 1);
@@ -171,7 +171,7 @@ test('build fails if init has not been run', (t) => {
   writeOpenclawConfig(homeDir, createDefaultConfig(homeDir));
 
   const result = runCli(homeDir, ['build'], 1);
-  assert.match(result.stderr, /Run `openclaw-includes init` first/);
+  assert.match(result.stderr, /Run `openclaw-templates init` first/);
 });
 
 test('build recursively copies files and compiles markdown with includes', (t) => {
@@ -179,7 +179,7 @@ test('build recursively copies files and compiles markdown with includes', (t) =
   writeOpenclawConfig(homeDir, createDefaultConfig(homeDir));
   runCli(homeDir, ['init']);
 
-  const alphaTemplatesDir = path.join(homeDir, '.openclaw-includes', 'alpha-id');
+  const alphaTemplatesDir = path.join(homeDir, '.openclaw-templates', 'alpha-id');
   fs.mkdirSync(path.join(alphaTemplatesDir, 'nested', 'assets'), { recursive: true });
   fs.writeFileSync(path.join(alphaTemplatesDir, 'nested', 'assets', 'info.txt'), 'asset text', 'utf8');
   fs.writeFileSync(path.join(alphaTemplatesDir, 'PLAIN.md'), '# Plain\nNo includes here.\n', 'utf8');
@@ -202,7 +202,7 @@ test('build does not overwrite non-include files by default', (t) => {
   writeOpenclawConfig(homeDir, createDefaultConfig(homeDir));
   runCli(homeDir, ['init']);
 
-  const alphaTemplatesDir = path.join(homeDir, '.openclaw-includes', 'alpha-id');
+  const alphaTemplatesDir = path.join(homeDir, '.openclaw-templates', 'alpha-id');
   fs.writeFileSync(path.join(alphaTemplatesDir, 'NO_INCLUDE.md'), 'template md', 'utf8');
   fs.mkdirSync(path.join(alphaTemplatesDir, 'assets'), { recursive: true });
   fs.writeFileSync(path.join(alphaTemplatesDir, 'assets', 'info.txt'), 'template text', 'utf8');
@@ -223,7 +223,7 @@ test('build --overwrite overwrites non-include markdown and non-markdown files',
   writeOpenclawConfig(homeDir, createDefaultConfig(homeDir));
   runCli(homeDir, ['init']);
 
-  const alphaTemplatesDir = path.join(homeDir, '.openclaw-includes', 'alpha-id');
+  const alphaTemplatesDir = path.join(homeDir, '.openclaw-templates', 'alpha-id');
   fs.writeFileSync(path.join(alphaTemplatesDir, 'NO_INCLUDE.md'), 'template md', 'utf8');
   fs.mkdirSync(path.join(alphaTemplatesDir, 'assets'), { recursive: true });
   fs.writeFileSync(path.join(alphaTemplatesDir, 'assets', 'info.txt'), 'template text', 'utf8');
@@ -276,7 +276,7 @@ test('build never writes into workspace .git paths', (t) => {
   writeOpenclawConfig(homeDir, createDefaultConfig(homeDir));
   runCli(homeDir, ['init']);
 
-  const alphaTemplatesDir = path.join(homeDir, '.openclaw-includes', 'alpha-id');
+  const alphaTemplatesDir = path.join(homeDir, '.openclaw-templates', 'alpha-id');
   fs.mkdirSync(path.join(alphaTemplatesDir, '.git'), { recursive: true });
   fs.writeFileSync(path.join(alphaTemplatesDir, '.git', 'HEAD'), 'template head\n', 'utf8');
   fs.mkdirSync(path.join(alphaTemplatesDir, 'nested', '.git'), { recursive: true });
@@ -311,7 +311,7 @@ test('build selector supports only agent id or exact workspace path', (t) => {
 
 test('build workspace-path selector blocks targets outside ~/.openclaw unless --force is supplied', (t) => {
   const homeDir = makeTempHome(t);
-  const outsideWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'openclaw-includes-outside-'));
+  const outsideWorkspace = fs.mkdtempSync(path.join(os.tmpdir(), 'openclaw-templates-outside-'));
   t.after(() => {
     fs.rmSync(outsideWorkspace, { recursive: true, force: true });
   });
@@ -344,7 +344,7 @@ test('commands use HOME override and write only into the temp home', (t) => {
   writeOpenclawConfig(homeDir, createDefaultConfig(homeDir));
 
   const result = runCli(homeDir, ['init']);
-  const targetDir = path.join(homeDir, '.openclaw-includes');
+  const targetDir = path.join(homeDir, '.openclaw-templates');
   assert.ok(fs.existsSync(targetDir));
   assert.match(result.stdout, new RegExp(targetDir.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')));
 });
