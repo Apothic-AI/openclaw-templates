@@ -78,7 +78,7 @@ test('help output includes all commands and build flags', () => {
 
   assert.equal(result.status, 0);
   assert.match(result.stdout, /openclaw-templates init \[--force\]/);
-  assert.match(result.stdout, /openclaw-templates update/);
+  assert.match(result.stdout, /openclaw-templates pull-agents/);
   assert.match(result.stdout, /openclaw-templates doctor/);
   assert.match(result.stdout, /openclaw-templates build \[workspace\] \[--overwrite\] \[--wipe\] \[--force\]/);
 });
@@ -129,15 +129,15 @@ test('doctor passes with valid config and templates', (t) => {
   assert.match(result.stdout, /Entrypoint templates \(.base\):/);
 });
 
-test('update fails if init has not been run', (t) => {
+test('pull-agents fails if init has not been run', (t) => {
   const homeDir = makeTempHome(t);
   writeOpenclawConfig(homeDir, createDefaultConfig(homeDir));
 
-  const result = runCli(homeDir, ['update'], 1);
+  const result = runCli(homeDir, ['pull-agents'], 1);
   assert.match(result.stderr, /Run `openclaw-templates init` first/);
 });
 
-test('update adds template directories for new agents without overwriting existing agents', (t) => {
+test('pull-agents adds template directories for new agents without overwriting existing agents', (t) => {
   const homeDir = makeTempHome(t);
   const config = createDefaultConfig(homeDir);
   writeOpenclawConfig(homeDir, config);
@@ -153,7 +153,7 @@ test('update adds template directories for new agents without overwriting existi
   });
   writeOpenclawConfig(homeDir, config);
 
-  const updateResult = runCli(homeDir, ['update']);
+  const updateResult = runCli(homeDir, ['pull-agents']);
   assert.match(updateResult.stdout, /added 1 agent template directory/);
 
   assert.ok(fs.existsSync(path.join(homeDir, '.openclaw-templates', 'gamma-id', 'AGENTS.md')));

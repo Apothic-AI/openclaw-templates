@@ -9,7 +9,7 @@ const markdownIncludeModulePath = require.resolve('markdown-include');
 function printUsage() {
   console.log('Usage:');
   console.log('  openclaw-templates init [--force]');
-  console.log('  openclaw-templates update');
+  console.log('  openclaw-templates pull-agents');
   console.log('  openclaw-templates doctor');
   console.log('  openclaw-templates build [workspace] [--overwrite] [--wipe] [--force]');
 }
@@ -495,7 +495,7 @@ function buildProgram() {
       initCommand(Boolean(options.force));
     });
 
-  program.command('update').action(() => {
+  program.command('pull-agents').action(() => {
     updateCommand();
   });
 

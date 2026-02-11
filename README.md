@@ -159,7 +159,7 @@ If you created new OpenClaw agents after running `openclaw-templates init` you w
 **Update to init new OpenClaw agent templates:**
 
 ```bash
-openclaw-templates update
+openclaw-templates pull-agents
 ```
 
 and you will now see their template structures in `~/.openclaw-templates`
@@ -168,7 +168,7 @@ and you will now see their template structures in `~/.openclaw-templates`
 
 ```text
 openclaw-templates init [--force]
-openclaw-templates update
+openclaw-templates pull-agents
 openclaw-templates doctor
 openclaw-templates build [workspace] [--overwrite] [--wipe] [--force]
 ```
@@ -203,7 +203,7 @@ Validates local setup:
 
 Outputs a summary with agent count and template count.
 
-### `update`
+### `pull-agents`
 
 Adds templates for agent IDs that are present in `~/.openclaw/openclaw.json` but not yet present in `~/.openclaw-templates`.
 
@@ -277,7 +277,7 @@ openclaw-templates doctor
 openclaw-templates init
 
 # 3) If new agents are later added to openclaw.json, sync only missing template dirs
-openclaw-templates update
+openclaw-templates pull-agents
 
 # 4) Build all agents
 openclaw-templates build
