@@ -1,0 +1,244 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { spawnSync } = require('node:child_process');
+
+const repoRoot = path.resolve(__dirname, '..');
+const cliPath = path.join(repoRoot, 'bin', 'openclaw-includes.js');
+
+function makeTempHome(t) {
+  const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'openclaw-includes-test-'));
+  t.after(() => {
+    fs.rmSync(tempHome, { recursive: true, force: true });
+  });
+  return tempHome;
+}
+
+function writeOpenclawConfig(homeDir, config) {
+  const openclawDir = path.join(homeDir, '.openclaw');
+  fs.mkdirSync(openclawDir, { recursive: true });
+  fs.writeFileSync(path.join(openclawDir, 'openclaw.json'), `${JSON.stringify(config, null, 2)}\n`, 'utf8');
+}
+
+function createDefaultConfig(homeDir) {
+  return {
+    agents: {
+      defaults: {
+        workspace: path.join(homeDir, '.openclaw', 'workspace'),
+      },
+      list: [
+        { id: 'main' },
+        {
+          id: 'alpha-id',
+          name: 'alpha-name',
+          workspace: path.join(homeDir, '.openclaw', 'workspace-alpha'),
+        },
+        {
+          id: 'beta-id',
+          name: 'beta-name',
+          workspace: path.join(homeDir, '.openclaw', 'workspace-beta'),
+        },
+      ],
+    },
+  };
+}
+
+function runCli(homeDir, args, expectedCode = 0) {
+  const result = spawnSync(process.execPath, [cliPath, ...args], {
+    cwd: repoRoot,
+    env: {
+      ...process.env,
+      HOME: homeDir,
+      USERPROFILE: homeDir,
+    },
+    encoding: 'utf8',
+  });
+
+  assert.equal(
+    result.status,
+    expectedCode,
+    [
+      `Expected exit code ${expectedCode}, got ${result.status}`,
+      `Command: node ${path.relative(repoRoot, cliPath)} ${args.join(' ')}`,
+      `stdout:\n${result.stdout}`,
+      `stderr:\n${result.stderr}`,
+    ].join('\n\n'),
+  );
+
+  return result;
+}
+
+test('help output includes all commands and build flags', () => {
+  const result = spawnSync(process.execPath, [cliPath, '--help'], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  });
+
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /openclaw-includes init \[--force\]/);
+  assert.match(result.stdout, /openclaw-includes doctor/);
+  assert.match(result.stdout, /openclaw-includes build \[workspace\] \[--overwrite\] \[--wipe\]/);
+});
+
+test('doctor fails when config file is missing', (t) => {
+  const homeDir = makeTempHome(t);
+  const result = runCli(homeDir, ['doctor'], 1);
+  assert.match(result.stderr, /Config file not found/);
+});
+
+test('init creates .openclaw-includes with .includes and one directory per agent id', (t) => {
+  const homeDir = makeTempHome(t);
+  writeOpenclawConfig(homeDir, createDefaultConfig(homeDir));
+
+  runCli(homeDir, ['init']);
+
+  const includesDir = path.join(homeDir, '.openclaw-includes', '.includes');
+  assert.ok(fs.existsSync(includesDir));
+  assert.ok(fs.existsSync(path.join(includesDir, 'AGENTS', 'HEADER.md')));
+
+  assert.ok(fs.existsSync(path.join(homeDir, '.openclaw-includes', 'main', 'AGENTS.md')));
+  assert.ok(fs.existsSync(path.join(homeDir, '.openclaw-includes', 'alpha-id', 'AGENTS.md')));
+  assert.ok(fs.existsSync(path.join(homeDir, '.openclaw-includes', 'beta-id', 'AGENTS.md')));
+});
+
+test('init requires --force to recreate an existing target directory', (t) => {
+  const homeDir = makeTempHome(t);
+  writeOpenclawConfig(homeDir, createDefaultConfig(homeDir));
+
+  runCli(homeDir, ['init']);
+
+  const marker = path.join(homeDir, '.openclaw-includes', 'alpha-id', 'marker.txt');
+  fs.writeFileSync(marker, 'remove me', 'utf8');
+
+  const secondInit = runCli(homeDir, ['init'], 1);
+  assert.match(secondInit.stderr, /Directory already exists/);
+
+  runCli(homeDir, ['init', '--force']);
+  assert.equal(fs.existsSync(marker), false);
+});
+
+test('doctor passes with valid config and templates', (t) => {
+  const homeDir = makeTempHome(t);
+  writeOpenclawConfig(homeDir, createDefaultConfig(homeDir));
+
+  const result = runCli(homeDir, ['doctor']);
+  assert.match(result.stdout, /Doctor checks passed/);
+  assert.match(result.stdout, /Entrypoint templates \(.base\):/);
+});
+
+test('build fails if init has not been run', (t) => {
+  const homeDir = makeTempHome(t);
+  writeOpenclawConfig(homeDir, createDefaultConfig(homeDir));
+
+  const result = runCli(homeDir, ['build'], 1);
+  assert.match(result.stderr, /Run `openclaw-includes init` first/);
+});
+
+test('build recursively copies files and compiles markdown with includes', (t) => {
+  const homeDir = makeTempHome(t);
+  writeOpenclawConfig(homeDir, createDefaultConfig(homeDir));
+  runCli(homeDir, ['init']);
+
+  const alphaTemplatesDir = path.join(homeDir, '.openclaw-includes', 'alpha-id');
+  fs.mkdirSync(path.join(alphaTemplatesDir, 'nested', 'assets'), { recursive: true });
+  fs.writeFileSync(path.join(alphaTemplatesDir, 'nested', 'assets', 'info.txt'), 'asset text', 'utf8');
+  fs.writeFileSync(path.join(alphaTemplatesDir, 'PLAIN.md'), '# Plain\nNo includes here.\n', 'utf8');
+
+  runCli(homeDir, ['build', 'alpha-id']);
+
+  const alphaWorkspace = path.join(homeDir, '.openclaw', 'workspace-alpha');
+  assert.ok(fs.existsSync(path.join(alphaWorkspace, 'nested', 'assets', 'info.txt')));
+  assert.ok(fs.existsSync(path.join(alphaWorkspace, 'PLAIN.md')));
+
+  const builtAgents = fs.readFileSync(path.join(alphaWorkspace, 'AGENTS.md'), 'utf8');
+  assert.doesNotMatch(builtAgents, /^#include\s/m);
+
+  const betaWorkspace = path.join(homeDir, '.openclaw', 'workspace-beta');
+  assert.equal(fs.existsSync(path.join(betaWorkspace, 'AGENTS.md')), false);
+});
+
+test('build does not overwrite non-include files by default', (t) => {
+  const homeDir = makeTempHome(t);
+  writeOpenclawConfig(homeDir, createDefaultConfig(homeDir));
+  runCli(homeDir, ['init']);
+
+  const alphaTemplatesDir = path.join(homeDir, '.openclaw-includes', 'alpha-id');
+  fs.writeFileSync(path.join(alphaTemplatesDir, 'NO_INCLUDE.md'), 'template md', 'utf8');
+  fs.mkdirSync(path.join(alphaTemplatesDir, 'assets'), { recursive: true });
+  fs.writeFileSync(path.join(alphaTemplatesDir, 'assets', 'info.txt'), 'template text', 'utf8');
+
+  const alphaWorkspace = path.join(homeDir, '.openclaw', 'workspace-alpha');
+  fs.mkdirSync(path.join(alphaWorkspace, 'assets'), { recursive: true });
+  fs.writeFileSync(path.join(alphaWorkspace, 'NO_INCLUDE.md'), 'existing md', 'utf8');
+  fs.writeFileSync(path.join(alphaWorkspace, 'assets', 'info.txt'), 'existing text', 'utf8');
+
+  runCli(homeDir, ['build', 'alpha-id']);
+
+  assert.equal(fs.readFileSync(path.join(alphaWorkspace, 'NO_INCLUDE.md'), 'utf8'), 'existing md');
+  assert.equal(fs.readFileSync(path.join(alphaWorkspace, 'assets', 'info.txt'), 'utf8'), 'existing text');
+});
+
+test('build --overwrite overwrites non-include markdown and non-markdown files', (t) => {
+  const homeDir = makeTempHome(t);
+  writeOpenclawConfig(homeDir, createDefaultConfig(homeDir));
+  runCli(homeDir, ['init']);
+
+  const alphaTemplatesDir = path.join(homeDir, '.openclaw-includes', 'alpha-id');
+  fs.writeFileSync(path.join(alphaTemplatesDir, 'NO_INCLUDE.md'), 'template md', 'utf8');
+  fs.mkdirSync(path.join(alphaTemplatesDir, 'assets'), { recursive: true });
+  fs.writeFileSync(path.join(alphaTemplatesDir, 'assets', 'info.txt'), 'template text', 'utf8');
+
+  const alphaWorkspace = path.join(homeDir, '.openclaw', 'workspace-alpha');
+  fs.mkdirSync(path.join(alphaWorkspace, 'assets'), { recursive: true });
+  fs.writeFileSync(path.join(alphaWorkspace, 'NO_INCLUDE.md'), 'existing md', 'utf8');
+  fs.writeFileSync(path.join(alphaWorkspace, 'assets', 'info.txt'), 'existing text', 'utf8');
+
+  runCli(homeDir, ['build', 'alpha-id', '--overwrite']);
+
+  assert.equal(fs.readFileSync(path.join(alphaWorkspace, 'NO_INCLUDE.md'), 'utf8'), 'template md');
+  assert.equal(fs.readFileSync(path.join(alphaWorkspace, 'assets', 'info.txt'), 'utf8'), 'template text');
+});
+
+test('build --wipe clears workspace before writing output', (t) => {
+  const homeDir = makeTempHome(t);
+  writeOpenclawConfig(homeDir, createDefaultConfig(homeDir));
+  runCli(homeDir, ['init']);
+
+  const alphaWorkspace = path.join(homeDir, '.openclaw', 'workspace-alpha');
+  fs.mkdirSync(path.join(alphaWorkspace, 'old', 'nested'), { recursive: true });
+  fs.writeFileSync(path.join(alphaWorkspace, 'old', 'nested', 'legacy.txt'), 'legacy', 'utf8');
+
+  runCli(homeDir, ['build', 'alpha-id', '--wipe']);
+
+  assert.equal(fs.existsSync(path.join(alphaWorkspace, 'old', 'nested', 'legacy.txt')), false);
+  assert.ok(fs.existsSync(path.join(alphaWorkspace, 'AGENTS.md')));
+});
+
+test('build selector supports only agent id or exact workspace path', (t) => {
+  const homeDir = makeTempHome(t);
+  const config = createDefaultConfig(homeDir);
+  writeOpenclawConfig(homeDir, config);
+  runCli(homeDir, ['init']);
+
+  runCli(homeDir, ['build', 'alpha-id']);
+  assert.ok(fs.existsSync(path.join(homeDir, '.openclaw', 'workspace-alpha', 'AGENTS.md')));
+  assert.equal(fs.existsSync(path.join(homeDir, '.openclaw', 'workspace-beta', 'AGENTS.md')), false);
+
+  runCli(homeDir, ['build', config.agents.defaults.workspace]);
+  assert.ok(fs.existsSync(path.join(homeDir, '.openclaw', 'workspace', 'AGENTS.md')));
+
+  const byName = runCli(homeDir, ['build', 'alpha-name'], 1);
+  assert.match(byName.stderr, /not found/);
+});
+
+test('commands use HOME override and write only into the temp home', (t) => {
+  const homeDir = makeTempHome(t);
+  writeOpenclawConfig(homeDir, createDefaultConfig(homeDir));
+
+  const result = runCli(homeDir, ['init']);
+  const targetDir = path.join(homeDir, '.openclaw-includes');
+  assert.ok(fs.existsSync(targetDir));
+  assert.match(result.stdout, new RegExp(targetDir.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')));
+});

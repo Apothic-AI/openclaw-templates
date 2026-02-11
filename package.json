@@ -6,7 +6,7 @@
     "openclaw-includes": "bin/openclaw-includes.js"
   },
   "scripts": {
-    "test": "echo \"No tests configured\""
+    "test": "node --test"
   },
   "keywords": [],
   "author": "",
