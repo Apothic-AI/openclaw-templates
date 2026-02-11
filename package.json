@@ -1,10 +1,12 @@
 {
   "name": "openclaw-includes",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "CLI utility for bootstrapping OpenClaw include templates",
+  "bin": {
+    "openclaw-includes": "bin/openclaw-includes.js"
+  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"No tests configured\""
   },
   "keywords": [],
   "author": "",
