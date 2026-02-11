@@ -6,11 +6,11 @@ CLI for managing and building OpenClaw workspace include templates.
 
 ## Features
 
-- Uses agent `id` values from `~/.openclaw/openclaw.json`.
-- Treats `templates/.base/*.md` as entrypoint templates.
-- Reuses shared include fragments from `templates/.includes/**`.
+- Entrypoint templates for all OpenClaw workspace .md files.
+- Uses agent values from `~/.openclaw/openclaw.json` to discover agent workspaces.
+- Reuses shared include fragments from `~/.openclaw-templates/.includes/**`.
 - Builds recursively (files + subdirectories).
-- Compiles markdown files that contain `#include "..."` tags.
+- Compiles all markdown files that contain `#include "..."` tags.
 - Supports selective overwrite and wipe behavior.
 - Protects workspace git metadata (`.git`) during build/wipe.
 
