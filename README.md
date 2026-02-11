@@ -23,7 +23,13 @@ CLI for managing and building OpenClaw workspace include templates.
 
 ## Install
 
-### Global (from npm, once published)
+### Global (from npm)
+
+```bash
+npm install -g openclaw-templates
+```
+
+OR
 
 ```bash
 pnpm add -g openclaw-templates
@@ -42,7 +48,123 @@ Then:
 openclaw-templates --help
 ```
 
-## Usage
+## Quick Start
+
+After installing (See above), initialize openclaw-templates. This will create a subdirectory under `~/.openclaw-templates` for each of your existing openclaw workspaces.
+
+```bash
+openclaw-templates init
+```
+
+You will also now have a `~/.openclaw-templates/.includes` directory containing prompt file sections to be injected/included in your workspace templates.
+
+**Example (With just the default agent):**
+
+```
+> tree -a ~/.openclaw-templates
+/home/user/.openclaw-templates
+├── .includes
+│   ├── AGENTS
+│   │   ├── EVERY_SESSION.md
+│   │   ├── EXTERNAL_VS_INTERNAL.md
+│   │   ├── FIRST_RUN.md
+│   │   ├── GROUP_CHATS.md
+│   │   ├── HEADER.md
+│   │   ├── HEARTBEATS.md
+│   │   ├── HEARTBEAT_VS_CRON.md
+│   │   ├── KNOW_WHEN_TO_SPEAK.md
+│   │   ├── MAKE_IT_YOURS.md
+│   │   ├── MEMORY_MAINTENANCE.md
+│   │   ├── MEMORY.md
+│   │   ├── MEMORY_MD_LONG_TERM.md
+│   │   ├── PROACTIVE_WORK.md
+│   │   ├── REACT_LIKE_A_HUMAN.md
+│   │   ├── SAFETY.md
+│   │   ├── THINGS_TO_CHECK.md
+│   │   ├── TOOLS.md
+│   │   ├── WHEN_TO_REACH_OUT.md
+│   │   ├── WHEN_TO_STAY_QUIET.md
+│   │   ├── WRITE_IT_DOWN.md
+│   │   └── YOUR_WORKSPACE.md
+│   ├── BOOT
+│   │   ├── CONTENT.md
+│   │   └── HEADER.md
+│   ├── BOOTSTRAP
+│   │   ├── AFTER_YOU_KNOW_WHO_YOU_ARE.md
+│   │   ├── CONNECT_OPTIONAL.md
+│   │   ├── FOOTER.md
+│   │   ├── HEADER.md
+│   │   ├── THE_CONVERSATION.md
+│   │   └── WHEN_YOU_ARE_DONE.md
+│   ├── HEARTBEAT
+│   │   ├── CONTENT.md
+│   │   └── HEADER.md
+│   ├── IDENTITY
+│   │   ├── HEADER.md
+│   │   ├── NOTES.md
+│   │   └── PROFILE.md
+│   ├── SOUL
+│   │   ├── BOUNDARIES.md
+│   │   ├── CONTINUITY.md
+│   │   ├── CORE_TRUTHS.md
+│   │   ├── FOOTER.md
+│   │   ├── HEADER.md
+│   │   └── VIBE.md
+│   ├── TOOLS
+│   │   ├── EXAMPLES.md
+│   │   ├── FOOTER.md
+│   │   ├── HEADER.md
+│   │   ├── WHAT_GOES_HERE.md
+│   │   └── WHY_SEPARATE.md
+│   └── USER
+│       ├── CONTEXT.md
+│       ├── FOOTER.md
+│       ├── HEADER.md
+│       └── PROFILE.md
+└── main
+    ├── AGENTS.md
+    ├── BOOT.md
+    ├── BOOTSTRAP.md
+    ├── HEARTBEAT.md
+    ├── IDENTITY.md
+    ├── SOUL.md
+    ├── TOOLS.md
+    └── USER.md
+
+11 directories, 57 files
+```
+
+The easiest way to manually manage your workspace templates is in an IDE like Visual Studio Code:
+
+```bash
+code ~/.openclaw-templates
+```
+
+Once your templates meet your standards you can build them back into your `~/.openclaw` directory.
+
+**Build all your templates:**
+
+```bash
+openclaw-templates build
+```
+
+**OR selectively build one by agent ID:**
+
+```bash
+openclaw-templates build main
+```
+
+If you created new OpenClaw agents after running `openclaw-templates init` you will need to update to init them.
+
+**Update to init new OpenClaw agent templates:**
+
+```bash
+openclaw-templates update
+```
+
+and you will now see their template structures in `~/.openclaw-templates`
+
+## Full Usage
 
 ```text
 openclaw-templates init [--force]
