@@ -44,15 +44,18 @@ function parseOpenclawConfig(openclawConfigPath) {
   return list;
 }
 
-function getAgentNames(openclawConfigPath) {
+function getAgentNames(openclawConfigPath, homeDir) {
   const list = parseOpenclawConfig(openclawConfigPath);
   const agentNames = new Set();
-  for (const agent of list) {
-    if (!agent || typeof agent.workspace !== 'string' || agent.workspace.trim() === '') {
+  const allWorkspaces = list
+    .map((agent) => (agent ? agent.workspace : undefined))
+    .concat(path.join(homeDir, '.openclaw', 'workspace'));
+  for (const workspace of allWorkspaces) {
+    if (typeof workspace !== 'string' || workspace.trim() === '') {
       continue;
     }
 
-    const normalizedWorkspace = agent.workspace.replace(/[\\/]+$/, '');
+    const normalizedWorkspace = workspace.replace(/[\\/]+$/, '');
     const dirName = path.basename(normalizedWorkspace);
     if (dirName && dirName !== '.' && dirName !== path.sep) {
       agentNames.add(dirName);
@@ -94,8 +97,8 @@ function assertBaseTemplatesDir(baseTemplatesDir) {
 }
 
 function initCommand(force) {
-  const { targetDir, openclawConfigPath, templatesRoot, baseTemplatesDir } = getInitPaths();
-  const agentNames = getAgentNames(openclawConfigPath);
+  const { homeDir, targetDir, openclawConfigPath, templatesRoot, baseTemplatesDir } = getInitPaths();
+  const agentNames = getAgentNames(openclawConfigPath, homeDir);
   const includeTemplateFiles = getIncludeTemplateFiles(templatesRoot);
   assertBaseTemplatesDir(baseTemplatesDir);
 
@@ -125,9 +128,9 @@ function initCommand(force) {
 }
 
 function doctorCommand() {
-  const { openclawConfigPath, templatesRoot, baseTemplatesDir } = getInitPaths();
+  const { homeDir, openclawConfigPath, templatesRoot, baseTemplatesDir } = getInitPaths();
   const list = parseOpenclawConfig(openclawConfigPath);
-  const agentNames = getAgentNames(openclawConfigPath);
+  const agentNames = getAgentNames(openclawConfigPath, homeDir);
   const includeTemplateFiles = getIncludeTemplateFiles(templatesRoot);
   assertBaseTemplatesDir(baseTemplatesDir);
 
