@@ -13,6 +13,7 @@
   "license": "ISC",
   "packageManager": "pnpm@10.28.2",
   "dependencies": {
+    "commander": "^14.0.3",
     "markdown-include": "^0.4.3"
   }
 }

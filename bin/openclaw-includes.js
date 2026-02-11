@@ -3,6 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
+const { Command } = require('commander');
 const markdownIncludeModulePath = require.resolve('markdown-include');
 
 function printUsage() {
@@ -428,71 +429,50 @@ function doctorCommand() {
   }
 }
 
+function buildProgram() {
+  const program = new Command();
+  program.name('openclaw-includes');
+  program.showHelpAfterError();
+
+  program
+    .command('init')
+    .option('--force', 'Overwrite existing ~/.openclaw-includes')
+    .action((options) => {
+      initCommand(Boolean(options.force));
+    });
+
+  program.command('doctor').action(() => {
+    doctorCommand();
+  });
+
+  program
+    .command('build')
+    .argument('[workspace]')
+    .option('--overwrite', 'Overwrite non-include target files if they already exist')
+    .option('--wipe', 'Delete workspace contents before building')
+    .option('--force', 'Allow explicit workspace paths outside ~/.openclaw')
+    .action((workspace, options) => {
+      buildCommand(Boolean(options.overwrite), Boolean(options.wipe), workspace, Boolean(options.force));
+    });
+
+  return program;
+}
+
 function main() {
   const args = process.argv.slice(2);
-  const command = args[0];
 
-  if (!command || command === '--help' || command === '-h') {
-    printUsage();
-    process.exit(command ? 0 : 1);
-  }
-
-  if (command !== 'init' && command !== 'doctor' && command !== 'build') {
-    console.error(`Unknown command: ${command}`);
+  if (args.length === 0) {
     printUsage();
     process.exit(1);
   }
 
-  const restArgs = args.slice(1);
-  const flags = [];
-  const positional = [];
-  for (const arg of restArgs) {
-    if (arg.startsWith('--')) {
-      flags.push(arg);
-    } else {
-      positional.push(arg);
-    }
-  }
-
-  let validFlags = new Set();
-  if (command === 'init') {
-    validFlags = new Set(['--force']);
-  }
-  if (command === 'build') {
-    validFlags = new Set(['--overwrite', '--wipe', '--force']);
-  }
-
-  for (const flag of flags) {
-    if (!validFlags.has(flag)) {
-      console.error(`Unknown option: ${flag}`);
-      printUsage();
-      process.exit(1);
-    }
-  }
-
-  if (command !== 'build' && positional.length > 0) {
-    console.error(`Unexpected positional argument: ${positional[0]}`);
+  if (args.length === 1 && (args[0] === '--help' || args[0] === '-h')) {
     printUsage();
-    process.exit(1);
+    process.exit(0);
   }
 
-  if (command === 'build' && positional.length > 1) {
-    console.error('Too many positional arguments for build.');
-    printUsage();
-    process.exit(1);
-  }
-
-  if (command === 'doctor') {
-    doctorCommand();
-    return;
-  }
-
-  if (command === 'build') {
-    buildCommand(flags.includes('--overwrite'), flags.includes('--wipe'), positional[0], flags.includes('--force'));
-    return;
-  }
-
-  initCommand(flags.includes('--force'));
+  const program = buildProgram();
+  program.parse(process.argv);
 }
 
 main();

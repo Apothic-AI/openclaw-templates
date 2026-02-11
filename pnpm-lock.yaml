@@ -8,11 +8,18 @@ importers:
 
   .:
     dependencies:
+      commander:
+        specifier: ^14.0.3
+        version: 14.0.3
       markdown-include:
         specifier: ^0.4.3
         version: 0.4.3
 
 packages:
+
+  commander@14.0.3:
+    resolution: {integrity: sha512-H+y0Jo/T1RZ9qPP4Eh1pkcQcLRglraJaSLoyOtHxu6AapkjWVCy2Sit1QQ4x3Dng8qDlSsZEet7g5Pq06MvTgw==}
+    engines: {node: '>=20'}
 
   markdown-include@0.4.3:
     resolution: {integrity: sha512-kw1f+iJ8jAH9SYljv2RXmhRQFr2oMPPVdyoKaZIH+uA1rrQqDjLk6EQZW65oVz1Y+BkC3V//9lEvKKjRZNb1Jg==}
@@ -27,6 +34,8 @@ packages:
       (For a CapTP with native promises, see @endo/eventual-send and @endo/captp)
 
 snapshots:
+
+  commander@14.0.3: {}
 
   markdown-include@0.4.3:
     dependencies:
