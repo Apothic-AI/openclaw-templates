@@ -5,10 +5,23 @@ const path = require('node:path');
 const os = require('node:os');
 
 function printUsage() {
-  console.log('Usage: openclaw-includes init [--force]');
+  console.log('Usage:');
+  console.log('  openclaw-includes init [--force]');
+  console.log('  openclaw-includes doctor');
 }
 
-function getAgentNames(openclawConfigPath) {
+function getInitPaths() {
+  const homeDir = os.homedir();
+  return {
+    homeDir,
+    targetDir: path.join(homeDir, '.openclaw-includes'),
+    openclawConfigPath: path.join(homeDir, '.openclaw', 'openclaw.json'),
+    templatesRoot: path.resolve(__dirname, '..', 'templates'),
+    baseTemplatesDir: path.join(path.resolve(__dirname, '..', 'templates'), '.base'),
+  };
+}
+
+function parseOpenclawConfig(openclawConfigPath) {
   if (!fs.existsSync(openclawConfigPath)) {
     console.error(`Config file not found: ${openclawConfigPath}`);
     process.exit(1);
@@ -28,6 +41,11 @@ function getAgentNames(openclawConfigPath) {
     process.exit(1);
   }
 
+  return list;
+}
+
+function getAgentNames(openclawConfigPath) {
+  const list = parseOpenclawConfig(openclawConfigPath);
   const agentNames = new Set();
   for (const agent of list) {
     if (!agent || typeof agent.workspace !== 'string' || agent.workspace.trim() === '') {
@@ -49,22 +67,37 @@ function getAgentNames(openclawConfigPath) {
   return [...agentNames];
 }
 
-function initCommand(force) {
-  const homeDir = os.homedir();
-  const targetDir = path.join(homeDir, '.openclaw-includes');
-  const openclawConfigPath = path.join(homeDir, '.openclaw', 'openclaw.json');
-  const templatesRoot = path.resolve(__dirname, '..', 'templates');
-  const baseTemplatesDir = path.join(templatesRoot, '.base');
-
+function getIncludeTemplateFiles(templatesRoot) {
   if (!fs.existsSync(templatesRoot)) {
     console.error(`Templates directory not found: ${templatesRoot}`);
     process.exit(1);
   }
 
+  const includeTemplateFiles = fs
+    .readdirSync(templatesRoot, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
+    .map((entry) => entry.name);
+
+  if (includeTemplateFiles.length === 0) {
+    console.error(`No include template files found in ${templatesRoot}`);
+    process.exit(1);
+  }
+
+  return includeTemplateFiles;
+}
+
+function assertBaseTemplatesDir(baseTemplatesDir) {
   if (!fs.existsSync(baseTemplatesDir)) {
     console.error(`Base templates directory not found: ${baseTemplatesDir}`);
     process.exit(1);
   }
+}
+
+function initCommand(force) {
+  const { targetDir, openclawConfigPath, templatesRoot, baseTemplatesDir } = getInitPaths();
+  const agentNames = getAgentNames(openclawConfigPath);
+  const includeTemplateFiles = getIncludeTemplateFiles(templatesRoot);
+  assertBaseTemplatesDir(baseTemplatesDir);
 
   if (fs.existsSync(targetDir)) {
     if (!force) {
@@ -74,17 +107,6 @@ function initCommand(force) {
     }
 
     fs.rmSync(targetDir, { recursive: true, force: true });
-  }
-
-  const agentNames = getAgentNames(openclawConfigPath);
-  const includeTemplateFiles = fs
-    .readdirSync(templatesRoot, { withFileTypes: true })
-    .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
-    .map((entry) => entry.name);
-
-  if (includeTemplateFiles.length === 0) {
-    console.error(`No include template files found in ${templatesRoot}`);
-    process.exit(1);
   }
 
   fs.mkdirSync(targetDir, { recursive: true });
@@ -102,6 +124,26 @@ function initCommand(force) {
   console.log(`Initialized ${targetDir}`);
 }
 
+function doctorCommand() {
+  const { openclawConfigPath, templatesRoot, baseTemplatesDir } = getInitPaths();
+  const list = parseOpenclawConfig(openclawConfigPath);
+  const agentNames = getAgentNames(openclawConfigPath);
+  const includeTemplateFiles = getIncludeTemplateFiles(templatesRoot);
+  assertBaseTemplatesDir(baseTemplatesDir);
+
+  const invalidWorkspaceCount = list.filter(
+    (agent) => !agent || typeof agent.workspace !== 'string' || agent.workspace.trim() === '',
+  ).length;
+
+  console.log('Doctor checks passed');
+  console.log(`Config: ${openclawConfigPath}`);
+  console.log(`Agents found: ${agentNames.length}`);
+  console.log(`Include templates: ${includeTemplateFiles.length}`);
+  if (invalidWorkspaceCount > 0) {
+    console.log(`Skipped invalid workspace entries: ${invalidWorkspaceCount}`);
+  }
+}
+
 function main() {
   const args = process.argv.slice(2);
   const command = args[0];
@@ -111,14 +153,14 @@ function main() {
     process.exit(command ? 0 : 1);
   }
 
-  if (command !== 'init') {
+  if (command !== 'init' && command !== 'doctor') {
     console.error(`Unknown command: ${command}`);
     printUsage();
     process.exit(1);
   }
 
-  const validFlags = new Set(['--force']);
   const flags = args.slice(1);
+  const validFlags = command === 'init' ? new Set(['--force']) : new Set();
 
   for (const flag of flags) {
     if (!validFlags.has(flag)) {
@@ -126,6 +168,11 @@ function main() {
       printUsage();
       process.exit(1);
     }
+  }
+
+  if (command === 'doctor') {
+    doctorCommand();
+    return;
   }
 
   initCommand(flags.includes('--force'));
