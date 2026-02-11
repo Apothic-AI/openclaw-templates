@@ -1,1 +1,1 @@
-#include "base/BOOTSTRAP.md"
+#include "../.base/BOOTSTRAP.md"

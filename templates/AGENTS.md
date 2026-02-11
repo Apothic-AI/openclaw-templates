@@ -1,1 +1,1 @@
-#include "base/AGENTS.md"
+#include "../.base/AGENTS.md"
