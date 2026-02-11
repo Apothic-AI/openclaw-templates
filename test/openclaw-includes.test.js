@@ -146,6 +146,26 @@ test('doctor fails on duplicate agent ids in config', (t) => {
   assert.match(result.stderr, /Duplicate agent id/);
 });
 
+test('doctor fails on duplicate workspaces in config', (t) => {
+  const homeDir = makeTempHome(t);
+  const duplicateWorkspace = path.join(homeDir, '.openclaw', 'shared-workspace');
+
+  writeOpenclawConfig(homeDir, {
+    agents: {
+      defaults: {
+        workspace: path.join(homeDir, '.openclaw', 'workspace'),
+      },
+      list: [
+        { id: 'first-id', workspace: duplicateWorkspace },
+        { id: 'second-id', workspace: duplicateWorkspace },
+      ],
+    },
+  });
+
+  const result = runCli(homeDir, ['doctor'], 1);
+  assert.match(result.stderr, /Duplicate workspace/);
+});
+
 test('build fails if init has not been run', (t) => {
   const homeDir = makeTempHome(t);
   writeOpenclawConfig(homeDir, createDefaultConfig(homeDir));
