@@ -269,8 +269,17 @@ function clearDirectoryContents(dirPath) {
 
   const entries = fs.readdirSync(dirPath);
   for (const entry of entries) {
+    if (entry === '.git') {
+      continue;
+    }
     fs.rmSync(path.join(dirPath, entry), { recursive: true, force: true });
   }
+}
+
+function pathTouchesGitMetadata(relativePath) {
+  const normalized = relativePath.replace(/\\/g, '/');
+  const segments = normalized.split('/').filter(Boolean);
+  return segments.includes('.git');
 }
 
 function isChildPath(parentDir, childDir) {
@@ -366,6 +375,11 @@ function buildCommand(allowNonIncludeOverwrite, wipeWorkspaces, workspaceArg, al
     }
 
     for (const file of templateFiles) {
+      if (pathTouchesGitMetadata(file.relativePath)) {
+        skippedFiles += 1;
+        continue;
+      }
+
       const destinationPath = path.join(entry.workspace, file.relativePath);
       fs.mkdirSync(path.dirname(destinationPath), { recursive: true });
 

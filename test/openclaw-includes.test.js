@@ -254,6 +254,44 @@ test('build --wipe clears workspace before writing output', (t) => {
   assert.ok(fs.existsSync(path.join(alphaWorkspace, 'AGENTS.md')));
 });
 
+test('build --wipe preserves workspace .git directory', (t) => {
+  const homeDir = makeTempHome(t);
+  writeOpenclawConfig(homeDir, createDefaultConfig(homeDir));
+  runCli(homeDir, ['init']);
+
+  const alphaWorkspace = path.join(homeDir, '.openclaw', 'workspace-alpha');
+  const gitDir = path.join(alphaWorkspace, '.git');
+  fs.mkdirSync(gitDir, { recursive: true });
+  fs.writeFileSync(path.join(gitDir, 'HEAD'), 'ref: refs/heads/main\n', 'utf8');
+  fs.writeFileSync(path.join(alphaWorkspace, 'legacy.txt'), 'legacy', 'utf8');
+
+  runCli(homeDir, ['build', 'alpha-id', '--wipe']);
+
+  assert.ok(fs.existsSync(path.join(gitDir, 'HEAD')));
+  assert.equal(fs.existsSync(path.join(alphaWorkspace, 'legacy.txt')), false);
+});
+
+test('build never writes into workspace .git paths', (t) => {
+  const homeDir = makeTempHome(t);
+  writeOpenclawConfig(homeDir, createDefaultConfig(homeDir));
+  runCli(homeDir, ['init']);
+
+  const alphaTemplatesDir = path.join(homeDir, '.openclaw-includes', 'alpha-id');
+  fs.mkdirSync(path.join(alphaTemplatesDir, '.git'), { recursive: true });
+  fs.writeFileSync(path.join(alphaTemplatesDir, '.git', 'HEAD'), 'template head\n', 'utf8');
+  fs.mkdirSync(path.join(alphaTemplatesDir, 'nested', '.git'), { recursive: true });
+  fs.writeFileSync(path.join(alphaTemplatesDir, 'nested', '.git', 'config'), 'template nested git\n', 'utf8');
+
+  const alphaWorkspace = path.join(homeDir, '.openclaw', 'workspace-alpha');
+  fs.mkdirSync(path.join(alphaWorkspace, '.git'), { recursive: true });
+  fs.writeFileSync(path.join(alphaWorkspace, '.git', 'HEAD'), 'workspace head\n', 'utf8');
+
+  runCli(homeDir, ['build', 'alpha-id', '--overwrite']);
+
+  assert.equal(fs.readFileSync(path.join(alphaWorkspace, '.git', 'HEAD'), 'utf8'), 'workspace head\n');
+  assert.equal(fs.existsSync(path.join(alphaWorkspace, 'nested', '.git', 'config')), false);
+});
+
 test('build selector supports only agent id or exact workspace path', (t) => {
   const homeDir = makeTempHome(t);
   const config = createDefaultConfig(homeDir);
