@@ -14,43 +14,17 @@ CLI for managing and building OpenClaw workspace include templates.
 - Supports selective overwrite and wipe behavior.
 - Protects workspace git metadata (`.git`) during build/wipe.
 
-## Requirements
+## Quick Start
 
-- Node.js (tested on Node 25; CI runs Node 22)
-- pnpm
-- Existing OpenClaw config at:
-  - `~/.openclaw/openclaw.json`
-
-## Install
-
-### Global (from npm)
+### Install
 
 ```bash
 npm install -g openclaw-templates
 ```
 
-OR
+### Initialize
 
-```bash
-pnpm add -g openclaw-templates
-```
-
-### Local development (this repo)
-
-```bash
-pnpm install
-pnpm link --global
-```
-
-Then:
-
-```bash
-openclaw-templates --help
-```
-
-## Quick Start
-
-After installing (See above), initialize openclaw-templates. This will create a subdirectory under `~/.openclaw-templates` for each of your existing openclaw workspaces.
+After installing, initialize openclaw-templates. This will create a subdirectory under `~/.openclaw-templates` for each of your existing openclaw workspaces.
 
 ```bash
 openclaw-templates init
@@ -134,11 +108,15 @@ You will also now have a `~/.openclaw-templates/.includes` directory containing 
 11 directories, 57 files
 ```
 
+### Edit
+
 The easiest way to manually manage your workspace templates is in an IDE like Visual Studio Code:
 
 ```bash
 code ~/.openclaw-templates
 ```
+
+### Build
 
 Once your templates meet your standards you can build them back into your `~/.openclaw` directory.
 
@@ -154,15 +132,37 @@ openclaw-templates build
 openclaw-templates build main
 ```
 
-If you created new OpenClaw agents after running `openclaw-templates init` you will need to update to init them.
+### New Agents
 
-**Update to init new OpenClaw agent templates:**
+If you created new OpenClaw agents after running `openclaw-templates init` you will need to initialize their templates.
+
+**Pull new agents into `~/.openclaw-templates`:**
 
 ```bash
 openclaw-templates pull-agents
 ```
 
 and you will now see their template structures in `~/.openclaw-templates`
+
+## Requirements
+
+- Node.js (tested on Node 25; CI runs Node 22)
+- pnpm
+- Existing OpenClaw config at:
+  - `~/.openclaw/openclaw.json`
+
+### Local development (this repo)
+
+```bash
+pnpm install
+pnpm link --global
+```
+
+Then:
+
+```bash
+openclaw-templates --help
+```
 
 ## Full Usage
 
