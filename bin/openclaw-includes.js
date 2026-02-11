@@ -9,7 +9,7 @@ function printUsage() {
   console.log('Usage:');
   console.log('  openclaw-includes init [--force]');
   console.log('  openclaw-includes doctor');
-  console.log('  openclaw-includes build');
+  console.log('  openclaw-includes build [--overwrite]');
 }
 
 function getInitPaths() {
@@ -209,7 +209,7 @@ function listFilesRecursive(rootDir) {
   return files;
 }
 
-function buildCommand() {
+function buildCommand(allowNonIncludeOverwrite) {
   const { homeDir, targetDir, openclawConfigPath } = getInitPaths();
   const agentEntries = getAgentEntries(openclawConfigPath, homeDir);
   const includesDir = path.join(targetDir, '.includes');
@@ -261,14 +261,14 @@ function buildCommand() {
           }
           fs.writeFileSync(destinationPath, compiled, 'utf8');
           totalFiles += 1;
-        } else if (!fs.existsSync(destinationPath)) {
+        } else if (!fs.existsSync(destinationPath) || allowNonIncludeOverwrite) {
           fs.copyFileSync(file.absolutePath, destinationPath);
           totalFiles += 1;
         } else {
           skippedFiles += 1;
         }
       } else {
-        if (!fs.existsSync(destinationPath)) {
+        if (!fs.existsSync(destinationPath) || allowNonIncludeOverwrite) {
           fs.copyFileSync(file.absolutePath, destinationPath);
           totalFiles += 1;
         } else {
@@ -317,7 +317,13 @@ function main() {
   }
 
   const flags = args.slice(1);
-  const validFlags = command === 'init' ? new Set(['--force']) : new Set();
+  let validFlags = new Set();
+  if (command === 'init') {
+    validFlags = new Set(['--force']);
+  }
+  if (command === 'build') {
+    validFlags = new Set(['--overwrite']);
+  }
 
   for (const flag of flags) {
     if (!validFlags.has(flag)) {
@@ -333,7 +339,7 @@ function main() {
   }
 
   if (command === 'build') {
-    buildCommand();
+    buildCommand(flags.includes('--overwrite'));
     return;
   }
 
