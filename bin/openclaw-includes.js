@@ -179,6 +179,36 @@ function compileMarkdownFile(sourceFilePath) {
   }
 }
 
+function hasActiveIncludeTags(sourceFilePath) {
+  const rawData = fs.readFileSync(sourceFilePath, 'utf8');
+  const markdownInclude = require('markdown-include');
+  return markdownInclude.findIncludeTags(rawData).length > 0;
+}
+
+function listFilesRecursive(rootDir) {
+  const files = [];
+
+  function walk(currentDir, relativeDir) {
+    const entries = fs.readdirSync(currentDir, { withFileTypes: true });
+    for (const entry of entries) {
+      const absolutePath = path.join(currentDir, entry.name);
+      const relativePath = relativeDir ? path.join(relativeDir, entry.name) : entry.name;
+
+      if (entry.isDirectory()) {
+        walk(absolutePath, relativePath);
+      } else if (entry.isFile()) {
+        files.push({
+          absolutePath,
+          relativePath,
+        });
+      }
+    }
+  }
+
+  walk(rootDir, '');
+  return files;
+}
+
 function buildCommand() {
   const { homeDir, targetDir, openclawConfigPath } = getInitPaths();
   const agentEntries = getAgentEntries(openclawConfigPath, homeDir);
@@ -197,6 +227,7 @@ function buildCommand() {
   }
 
   let totalFiles = 0;
+  let skippedFiles = 0;
 
   for (const entry of agentEntries) {
     const agentTemplatesDir = path.join(targetDir, entry.name);
@@ -206,35 +237,48 @@ function buildCommand() {
       process.exit(1);
     }
 
-    const templateFiles = fs
-      .readdirSync(agentTemplatesDir, { withFileTypes: true })
-      .filter((dirent) => dirent.isFile() && dirent.name.endsWith('.md'))
-      .map((dirent) => dirent.name);
-
+    const templateFiles = listFilesRecursive(agentTemplatesDir);
     if (templateFiles.length === 0) {
-      console.error(`No template markdown files found in ${agentTemplatesDir}`);
+      console.error(`No template files found in ${agentTemplatesDir}`);
       process.exit(1);
     }
 
     fs.mkdirSync(entry.workspace, { recursive: true });
 
-    for (const fileName of templateFiles) {
-      const sourceFilePath = path.join(agentTemplatesDir, fileName);
-      let compiled;
-      try {
-        compiled = compileMarkdownFile(sourceFilePath);
-      } catch (error) {
-        console.error(`Failed to compile ${sourceFilePath}: ${error.message}`);
-        process.exit(1);
-      }
+    for (const file of templateFiles) {
+      const destinationPath = path.join(entry.workspace, file.relativePath);
+      fs.mkdirSync(path.dirname(destinationPath), { recursive: true });
 
-      const destinationPath = path.join(entry.workspace, fileName);
-      fs.writeFileSync(destinationPath, compiled, 'utf8');
-      totalFiles += 1;
+      if (file.relativePath.endsWith('.md')) {
+        const hasIncludes = hasActiveIncludeTags(file.absolutePath);
+        if (hasIncludes) {
+          let compiled;
+          try {
+            compiled = compileMarkdownFile(file.absolutePath);
+          } catch (error) {
+            console.error(`Failed to compile ${file.absolutePath}: ${error.message}`);
+            process.exit(1);
+          }
+          fs.writeFileSync(destinationPath, compiled, 'utf8');
+          totalFiles += 1;
+        } else if (!fs.existsSync(destinationPath)) {
+          fs.copyFileSync(file.absolutePath, destinationPath);
+          totalFiles += 1;
+        } else {
+          skippedFiles += 1;
+        }
+      } else {
+        if (!fs.existsSync(destinationPath)) {
+          fs.copyFileSync(file.absolutePath, destinationPath);
+          totalFiles += 1;
+        } else {
+          skippedFiles += 1;
+        }
+      }
     }
   }
 
-  console.log(`Built ${totalFiles} files across ${agentEntries.length} workspace(s).`);
+  console.log(`Built ${totalFiles} files across ${agentEntries.length} workspace(s); skipped ${skippedFiles}.`);
 }
 
 function doctorCommand() {
