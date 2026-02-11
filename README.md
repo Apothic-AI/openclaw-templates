@@ -179,3 +179,7 @@ CI:
 
 - GitHub Actions workflow at `.github/workflows/ci.yml`
 - Runs `pnpm test` on pushes and pull requests
+
+## License
+
+Apache License 2.0. See `LICENSE`.
