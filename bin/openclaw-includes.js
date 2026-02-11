@@ -9,7 +9,7 @@ function printUsage() {
   console.log('Usage:');
   console.log('  openclaw-includes init [--force]');
   console.log('  openclaw-includes doctor');
-  console.log('  openclaw-includes build [--overwrite]');
+  console.log('  openclaw-includes build [--overwrite] [--wipe]');
 }
 
 function getInitPaths() {
@@ -209,7 +209,23 @@ function listFilesRecursive(rootDir) {
   return files;
 }
 
-function buildCommand(allowNonIncludeOverwrite) {
+function clearDirectoryContents(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    return;
+  }
+
+  if (!fs.statSync(dirPath).isDirectory()) {
+    console.error(`Workspace path is not a directory: ${dirPath}`);
+    process.exit(1);
+  }
+
+  const entries = fs.readdirSync(dirPath);
+  for (const entry of entries) {
+    fs.rmSync(path.join(dirPath, entry), { recursive: true, force: true });
+  }
+}
+
+function buildCommand(allowNonIncludeOverwrite, wipeWorkspaces) {
   const { homeDir, targetDir, openclawConfigPath } = getInitPaths();
   const agentEntries = getAgentEntries(openclawConfigPath, homeDir);
   const includesDir = path.join(targetDir, '.includes');
@@ -244,6 +260,9 @@ function buildCommand(allowNonIncludeOverwrite) {
     }
 
     fs.mkdirSync(entry.workspace, { recursive: true });
+    if (wipeWorkspaces) {
+      clearDirectoryContents(entry.workspace);
+    }
 
     for (const file of templateFiles) {
       const destinationPath = path.join(entry.workspace, file.relativePath);
@@ -322,7 +341,7 @@ function main() {
     validFlags = new Set(['--force']);
   }
   if (command === 'build') {
-    validFlags = new Set(['--overwrite']);
+    validFlags = new Set(['--overwrite', '--wipe']);
   }
 
   for (const flag of flags) {
@@ -339,7 +358,7 @@ function main() {
   }
 
   if (command === 'build') {
-    buildCommand(flags.includes('--overwrite'));
+    buildCommand(flags.includes('--overwrite'), flags.includes('--wipe'));
     return;
   }
 
