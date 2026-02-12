@@ -150,7 +150,7 @@ and you will now see their template structures in `~/.openclaw-templates`
 - pnpm
 - Existing OpenClaw config at:
   - default: `~/.openclaw/openclaw.json`
-  - or pass `--openclaw-dir <path>`
+  - or pass `--openclaw <path>`
   - or set `OCLAWTPL_OPENCLAW`
 
 ### Local development (this repo)
@@ -169,17 +169,17 @@ openclaw-templates --help
 ## Full Usage
 
 ```text
-openclaw-templates [--openclaw-dir <path>] [--templates <path>] init [--force]
-openclaw-templates [--openclaw-dir <path>] [--templates <path>] pull-agents
-openclaw-templates [--openclaw-dir <path>] [--templates <path>] doctor
-openclaw-templates [--openclaw-dir <path>] [--templates <path>] build [workspace] [--overwrite] [--wipe] [--force]
+openclaw-templates [--openclaw <path>] [--templates <path>] init [--force]
+openclaw-templates [--openclaw <path>] [--templates <path>] pull-agents
+openclaw-templates [--openclaw <path>] [--templates <path>] doctor
+openclaw-templates [--openclaw <path>] [--templates <path>] build [workspace] [--overwrite] [--wipe] [--force]
 ```
 
 ## Commands
 
 ### Global options
 
-- `--openclaw-dir <path>`
+- `--openclaw <path>`
   - OpenClaw root directory containing `openclaw.json`
   - defaults to `~/.openclaw`
   - environment fallback: `OCLAWTPL_OPENCLAW`
@@ -190,7 +190,7 @@ openclaw-templates [--openclaw-dir <path>] [--templates <path>] build [workspace
 
 Precedence:
 
-- CLI flags (`--openclaw-dir`, `--templates`) override environment variables.
+- CLI flags (`--openclaw`, `--templates`) override environment variables.
 - Environment variables override built-in defaults.
 
 ### `init [--force]`
@@ -307,7 +307,7 @@ openclaw-templates build tom-assistant
 openclaw-templates build /path/to/workspace --force
 
 # 7) Use a non-default OpenClaw directory
-openclaw-templates --openclaw-dir /path/to/openclaw doctor
+openclaw-templates --openclaw /path/to/openclaw doctor
 
 # 8) Use a non-default templates directory
 openclaw-templates --templates /path/to/openclaw-templates init

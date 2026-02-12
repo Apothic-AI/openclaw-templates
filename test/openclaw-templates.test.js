@@ -77,12 +77,12 @@ test('help output includes all commands and build flags', () => {
   });
 
   assert.equal(result.status, 0);
-  assert.match(result.stdout, /openclaw-templates \[--openclaw-dir <path>\] \[--templates <path>\] init \[--force\]/);
-  assert.match(result.stdout, /openclaw-templates \[--openclaw-dir <path>\] \[--templates <path>\] pull-agents/);
-  assert.match(result.stdout, /openclaw-templates \[--openclaw-dir <path>\] \[--templates <path>\] doctor/);
+  assert.match(result.stdout, /openclaw-templates \[--openclaw <path>\] \[--templates <path>\] init \[--force\]/);
+  assert.match(result.stdout, /openclaw-templates \[--openclaw <path>\] \[--templates <path>\] pull-agents/);
+  assert.match(result.stdout, /openclaw-templates \[--openclaw <path>\] \[--templates <path>\] doctor/);
   assert.match(
     result.stdout,
-    /openclaw-templates \[--openclaw-dir <path>\] \[--templates <path>\] build \[workspace\] \[--overwrite\] \[--wipe\] \[--force\]/,
+    /openclaw-templates \[--openclaw <path>\] \[--templates <path>\] build \[workspace\] \[--overwrite\] \[--wipe\] \[--force\]/,
   );
 });
 
@@ -384,7 +384,7 @@ test('commands use HOME override and write only into the temp home', (t) => {
   assert.match(result.stdout, new RegExp(targetDir.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')));
 });
 
-test('global --openclaw-dir overrides default config and workspace root', (t) => {
+test('global --openclaw overrides default config and workspace root', (t) => {
   const homeDir = makeTempHome(t);
   const customOpenclawDir = path.join(homeDir, 'custom-openclaw');
   const customConfig = {
@@ -400,9 +400,9 @@ test('global --openclaw-dir overrides default config and workspace root', (t) =>
   };
   writeOpenclawConfig(homeDir, customConfig, customOpenclawDir);
 
-  runCli(homeDir, ['--openclaw-dir', customOpenclawDir, 'doctor']);
-  runCli(homeDir, ['--openclaw-dir', customOpenclawDir, 'init']);
-  runCli(homeDir, ['--openclaw-dir', customOpenclawDir, 'build', 'alpha-id']);
+  runCli(homeDir, ['--openclaw', customOpenclawDir, 'doctor']);
+  runCli(homeDir, ['--openclaw', customOpenclawDir, 'init']);
+  runCli(homeDir, ['--openclaw', customOpenclawDir, 'build', 'alpha-id']);
 
   assert.ok(fs.existsSync(path.join(customOpenclawDir, 'workspace-alpha', 'AGENTS.md')));
   assert.equal(fs.existsSync(path.join(homeDir, '.openclaw', 'workspace-alpha', 'AGENTS.md')), false);

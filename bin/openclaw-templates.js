@@ -11,11 +11,11 @@ const TEMPLATES_DIR_ENV = 'OCLAWTPL_TEMPLATES';
 
 function printUsage() {
   console.log('Usage:');
-  console.log('  openclaw-templates [--openclaw-dir <path>] [--templates <path>] init [--force]');
-  console.log('  openclaw-templates [--openclaw-dir <path>] [--templates <path>] pull-agents');
-  console.log('  openclaw-templates [--openclaw-dir <path>] [--templates <path>] doctor');
+  console.log('  openclaw-templates [--openclaw <path>] [--templates <path>] init [--force]');
+  console.log('  openclaw-templates [--openclaw <path>] [--templates <path>] pull-agents');
+  console.log('  openclaw-templates [--openclaw <path>] [--templates <path>] doctor');
   console.log(
-    '  openclaw-templates [--openclaw-dir <path>] [--templates <path>] build [workspace] [--overwrite] [--wipe] [--force]',
+    '  openclaw-templates [--openclaw <path>] [--templates <path>] build [workspace] [--overwrite] [--wipe] [--force]',
   );
 }
 
@@ -553,7 +553,7 @@ function buildProgram() {
   program.name('openclaw-templates');
   program.showHelpAfterError();
   program.option(
-    '--openclaw-dir <path>',
+    '--openclaw <path>',
     `Path to OpenClaw directory (default: ~/.openclaw, env: ${OPENCLAW_DIR_ENV})`,
   );
   program.option(
@@ -565,18 +565,18 @@ function buildProgram() {
     .command('init')
     .option('--force', 'Overwrite existing template directory')
     .action(function action(options) {
-      const { openclawDir, templates } = this.optsWithGlobals();
-      initCommand(Boolean(options.force), openclawDir, templates);
+      const { openclaw, templates } = this.optsWithGlobals();
+      initCommand(Boolean(options.force), openclaw, templates);
     });
 
   program.command('pull-agents').action(function action() {
-    const { openclawDir, templates } = this.optsWithGlobals();
-    updateCommand(openclawDir, templates);
+    const { openclaw, templates } = this.optsWithGlobals();
+    updateCommand(openclaw, templates);
   });
 
   program.command('doctor').action(function action() {
-    const { openclawDir, templates } = this.optsWithGlobals();
-    doctorCommand(openclawDir, templates);
+    const { openclaw, templates } = this.optsWithGlobals();
+    doctorCommand(openclaw, templates);
   });
 
   program
@@ -586,13 +586,13 @@ function buildProgram() {
     .option('--wipe', 'Delete workspace contents before building')
     .option('--force', 'Allow explicit workspace paths outside ~/.openclaw')
     .action(function action(workspace, options) {
-      const { openclawDir, templates } = this.optsWithGlobals();
+      const { openclaw, templates } = this.optsWithGlobals();
       buildCommand(
         Boolean(options.overwrite),
         Boolean(options.wipe),
         workspace,
         Boolean(options.force),
-        openclawDir,
+        openclaw,
         templates,
       );
     });
