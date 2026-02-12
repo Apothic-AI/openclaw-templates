@@ -6,6 +6,9 @@ const os = require('node:os');
 const { Command } = require('commander');
 const markdownIncludeModulePath = require.resolve('markdown-include');
 
+const OPENCLAW_DIR_ENV = 'OCLAWTPL_OPENCLAW';
+const TEMPLATES_DIR_ENV = 'OCLAWTPL_TEMPLATES';
+
 function printUsage() {
   console.log('Usage:');
   console.log('  openclaw-templates [--openclaw-dir <path>] [--templates <path>] init [--force]');
@@ -16,9 +19,9 @@ function printUsage() {
   );
 }
 
-function resolvePathOption(pathOption, defaultPath, homeDir) {
+function normalizeOptionalPath(pathOption, homeDir) {
   if (typeof pathOption !== 'string' || pathOption.trim() === '') {
-    return defaultPath;
+    return undefined;
   }
 
   const trimmed = pathOption.trim();
@@ -32,12 +35,26 @@ function resolvePathOption(pathOption, defaultPath, homeDir) {
   return path.resolve(trimmed);
 }
 
+function resolvePathOption(pathOption, envVarName, defaultPath, homeDir) {
+  const explicitPath = normalizeOptionalPath(pathOption, homeDir);
+  if (explicitPath) {
+    return explicitPath;
+  }
+
+  const envPath = normalizeOptionalPath(process.env[envVarName], homeDir);
+  if (envPath) {
+    return envPath;
+  }
+
+  return defaultPath;
+}
+
 function resolveOpenclawDir(openclawDirOption, homeDir) {
-  return resolvePathOption(openclawDirOption, path.join(homeDir, '.openclaw'), homeDir);
+  return resolvePathOption(openclawDirOption, OPENCLAW_DIR_ENV, path.join(homeDir, '.openclaw'), homeDir);
 }
 
 function resolveTemplateDir(templateDirOption, homeDir) {
-  return resolvePathOption(templateDirOption, path.join(homeDir, '.openclaw-templates'), homeDir);
+  return resolvePathOption(templateDirOption, TEMPLATES_DIR_ENV, path.join(homeDir, '.openclaw-templates'), homeDir);
 }
 
 function getInitPaths(openclawDirOption, templateDirOption) {
@@ -535,8 +552,14 @@ function buildProgram() {
   const program = new Command();
   program.name('openclaw-templates');
   program.showHelpAfterError();
-  program.option('--openclaw-dir <path>', 'Path to OpenClaw directory (default: ~/.openclaw)');
-  program.option('--templates <path>', 'Path to templates directory (default: ~/.openclaw-templates)');
+  program.option(
+    '--openclaw-dir <path>',
+    `Path to OpenClaw directory (default: ~/.openclaw, env: ${OPENCLAW_DIR_ENV})`,
+  );
+  program.option(
+    '--templates <path>',
+    `Path to templates directory (default: ~/.openclaw-templates, env: ${TEMPLATES_DIR_ENV})`,
+  );
 
   program
     .command('init')

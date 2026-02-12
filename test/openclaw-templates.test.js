@@ -44,13 +44,14 @@ function createDefaultConfig(homeDir) {
   };
 }
 
-function runCli(homeDir, args, expectedCode = 0) {
+function runCli(homeDir, args, expectedCode = 0, extraEnv = {}) {
   const result = spawnSync(process.execPath, [cliPath, ...args], {
     cwd: repoRoot,
     env: {
       ...process.env,
       HOME: homeDir,
       USERPROFILE: homeDir,
+      ...extraEnv,
     },
     encoding: 'utf8',
   });
@@ -422,4 +423,40 @@ test('global --templates overrides default templates directory', (t) => {
 
   runCli(homeDir, ['--templates', customTemplateDir, 'build', 'alpha-id']);
   assert.ok(fs.existsSync(path.join(homeDir, '.openclaw', 'workspace-alpha', 'AGENTS.md')));
+});
+
+test('environment variables set default OpenClaw and templates directories', (t) => {
+  const homeDir = makeTempHome(t);
+  const envOpenclawDir = path.join(homeDir, 'env-openclaw');
+  const envTemplatesDir = path.join(homeDir, 'env-templates');
+  writeOpenclawConfig(
+    homeDir,
+    {
+      agents: {
+        defaults: {
+          workspace: 'workspace',
+        },
+        list: [
+          { id: 'main' },
+          { id: 'alpha-id', workspace: 'workspace-alpha' },
+        ],
+      },
+    },
+    envOpenclawDir,
+  );
+
+  const env = {
+    OCLAWTPL_OPENCLAW: envOpenclawDir,
+    OCLAWTPL_TEMPLATES: envTemplatesDir,
+  };
+
+  runCli(homeDir, ['doctor'], 0, env);
+  runCli(homeDir, ['init'], 0, env);
+  runCli(homeDir, ['build', 'alpha-id'], 0, env);
+
+  assert.ok(fs.existsSync(path.join(envTemplatesDir, '.includes', 'AGENTS', 'HEADER.md')));
+  assert.ok(fs.existsSync(path.join(envTemplatesDir, 'alpha-id', 'AGENTS.md')));
+  assert.ok(fs.existsSync(path.join(envOpenclawDir, 'workspace-alpha', 'AGENTS.md')));
+  assert.equal(fs.existsSync(path.join(homeDir, '.openclaw-templates')), false);
+  assert.equal(fs.existsSync(path.join(homeDir, '.openclaw', 'workspace-alpha', 'AGENTS.md')), false);
 });
