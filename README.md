@@ -2,13 +2,13 @@
 
 CLI for managing and building OpenClaw workspace include templates.
 
-`openclaw-templates` reads `<openclaw-dir>/openclaw.json` (default: `~/.openclaw/openclaw.json`), prepares per-agent template trees in `~/.openclaw-templates`, and builds rendered files into agent workspaces using [`markdown-include`](https://www.npmjs.com/package/markdown-include).
+`openclaw-templates` reads `<openclaw-dir>/openclaw.json` (default: `~/.openclaw/openclaw.json`), prepares per-agent template trees in `<template-dir>` (default: `~/.openclaw-templates`), and builds rendered files into agent workspaces using [`markdown-include`](https://www.npmjs.com/package/markdown-include).
 
 ## Features
 
 - Entrypoint templates for all OpenClaw workspace .md files.
 - Uses agent values from `<openclaw-dir>/openclaw.json` (default: `~/.openclaw/openclaw.json`) to discover agent workspaces.
-- Reuses shared include fragments from `~/.openclaw-templates/.includes/**`.
+- Reuses shared include fragments from `<template-dir>/.includes/**` (default: `~/.openclaw-templates/.includes/**`).
 - Builds recursively (files + subdirectories).
 - Compiles all markdown files that contain `#include "..."` tags.
 - Supports selective overwrite and wipe behavior.
@@ -24,7 +24,7 @@ npm install -g openclaw-templates
 
 ### Initialize
 
-After installing, initialize openclaw-templates. This will create a subdirectory under `~/.openclaw-templates` for each of your existing openclaw workspaces.
+After installing, initialize openclaw-templates. This will create a subdirectory under your template directory (default: `~/.openclaw-templates`) for each of your existing openclaw workspaces.
 
 ```bash
 openclaw-templates init
@@ -168,10 +168,10 @@ openclaw-templates --help
 ## Full Usage
 
 ```text
-openclaw-templates [--openclaw-dir <path>] init [--force]
-openclaw-templates [--openclaw-dir <path>] pull-agents
-openclaw-templates [--openclaw-dir <path>] doctor
-openclaw-templates [--openclaw-dir <path>] build [workspace] [--overwrite] [--wipe] [--force]
+openclaw-templates [--openclaw-dir <path>] [--templates <path>] init [--force]
+openclaw-templates [--openclaw-dir <path>] [--templates <path>] pull-agents
+openclaw-templates [--openclaw-dir <path>] [--templates <path>] doctor
+openclaw-templates [--openclaw-dir <path>] [--templates <path>] build [workspace] [--overwrite] [--wipe] [--force]
 ```
 
 ## Commands
@@ -181,19 +181,22 @@ openclaw-templates [--openclaw-dir <path>] build [workspace] [--overwrite] [--wi
 - `--openclaw-dir <path>`
   - OpenClaw root directory containing `openclaw.json`
   - defaults to `~/.openclaw`
+- `--templates <path>`
+  - Templates root directory used by `init`, `pull-agents`, and `build`
+  - defaults to `~/.openclaw-templates`
 
 ### `init [--force]`
 
-Initializes `~/.openclaw-templates` from the repository templates.
+Initializes `<template-dir>` (default: `~/.openclaw-templates`) from the repository templates.
 
 - Reads agent IDs/workspaces from `<openclaw-dir>/openclaw.json` (default: `~/.openclaw/openclaw.json`).
-- Copies `templates/.includes` to `~/.openclaw-templates/.includes`.
-- Creates one directory per agent id in `~/.openclaw-templates/<agent-id>/`.
+- Copies `templates/.includes` to `<template-dir>/.includes`.
+- Creates one directory per agent id in `<template-dir>/<agent-id>/`.
 - Copies all `templates/.base/*.md` entrypoints into each agent directory.
 
 Behavior:
 
-- If `~/.openclaw-templates` already exists:
+- If `<template-dir>` already exists:
   - fails by default
   - recreates it when `--force` is supplied
 
@@ -212,19 +215,19 @@ Outputs a summary with agent count and template count.
 
 ### `pull-agents`
 
-Adds templates for agent IDs that are present in `<openclaw-dir>/openclaw.json` but not yet present in `~/.openclaw-templates`.
+Adds templates for agent IDs that are present in `<openclaw-dir>/openclaw.json` but not yet present in `<template-dir>`.
 
 Behavior:
 
-- Requires `~/.openclaw-templates` to already exist (run `init` first).
-- Creates missing per-agent directories in `~/.openclaw-templates/<agent-id>/`.
+- Requires `<template-dir>` to already exist (run `init` first).
+- Creates missing per-agent directories in `<template-dir>/<agent-id>/`.
 - Copies `templates/.base/*.md` entrypoints only for newly added agents.
 - Does not overwrite existing agent template files/directories.
-- Ensures `~/.openclaw-templates/.includes` exists.
+- Ensures `<template-dir>/.includes` exists.
 
 ### `build [workspace] [--overwrite] [--wipe] [--force]`
 
-Builds templates from `~/.openclaw-templates` into workspace directories.
+Builds templates from `<template-dir>` (default: `~/.openclaw-templates`) into workspace directories.
 
 Selection:
 
@@ -240,7 +243,7 @@ Path safety:
 
 Build behavior:
 
-- Recursively walks `~/.openclaw-templates/<agent-id>/`.
+- Recursively walks `<template-dir>/<agent-id>/`.
 - For markdown files:
   - if file has active include tags, compile and overwrite destination.
   - if file has no include tags, copy only when destination is missing (unless `--overwrite`).
@@ -297,6 +300,9 @@ openclaw-templates build /path/to/workspace --force
 
 # 7) Use a non-default OpenClaw directory
 openclaw-templates --openclaw-dir /path/to/openclaw doctor
+
+# 8) Use a non-default templates directory
+openclaw-templates --templates /path/to/openclaw-templates init
 ```
 
 ## Development

@@ -76,12 +76,12 @@ test('help output includes all commands and build flags', () => {
   });
 
   assert.equal(result.status, 0);
-  assert.match(result.stdout, /openclaw-templates \[--openclaw-dir <path>\] init \[--force\]/);
-  assert.match(result.stdout, /openclaw-templates \[--openclaw-dir <path>\] pull-agents/);
-  assert.match(result.stdout, /openclaw-templates \[--openclaw-dir <path>\] doctor/);
+  assert.match(result.stdout, /openclaw-templates \[--openclaw-dir <path>\] \[--templates <path>\] init \[--force\]/);
+  assert.match(result.stdout, /openclaw-templates \[--openclaw-dir <path>\] \[--templates <path>\] pull-agents/);
+  assert.match(result.stdout, /openclaw-templates \[--openclaw-dir <path>\] \[--templates <path>\] doctor/);
   assert.match(
     result.stdout,
-    /openclaw-templates \[--openclaw-dir <path>\] build \[workspace\] \[--overwrite\] \[--wipe\] \[--force\]/,
+    /openclaw-templates \[--openclaw-dir <path>\] \[--templates <path>\] build \[workspace\] \[--overwrite\] \[--wipe\] \[--force\]/,
   );
 });
 
@@ -405,4 +405,21 @@ test('global --openclaw-dir overrides default config and workspace root', (t) =>
 
   assert.ok(fs.existsSync(path.join(customOpenclawDir, 'workspace-alpha', 'AGENTS.md')));
   assert.equal(fs.existsSync(path.join(homeDir, '.openclaw', 'workspace-alpha', 'AGENTS.md')), false);
+});
+
+test('global --templates overrides default templates directory', (t) => {
+  const homeDir = makeTempHome(t);
+  writeOpenclawConfig(homeDir, createDefaultConfig(homeDir));
+  const customTemplateDir = path.join(homeDir, 'custom-templates');
+
+  runCli(homeDir, ['--templates', customTemplateDir, 'init']);
+  assert.ok(fs.existsSync(path.join(customTemplateDir, '.includes', 'AGENTS', 'HEADER.md')));
+  assert.ok(fs.existsSync(path.join(customTemplateDir, 'alpha-id', 'AGENTS.md')));
+  assert.equal(fs.existsSync(path.join(homeDir, '.openclaw-templates')), false);
+
+  const buildWithoutTemplate = runCli(homeDir, ['build', 'alpha-id'], 1);
+  assert.match(buildWithoutTemplate.stderr, /Run `openclaw-templates init` first/);
+
+  runCli(homeDir, ['--templates', customTemplateDir, 'build', 'alpha-id']);
+  assert.ok(fs.existsSync(path.join(homeDir, '.openclaw', 'workspace-alpha', 'AGENTS.md')));
 });

@@ -8,18 +8,20 @@ const markdownIncludeModulePath = require.resolve('markdown-include');
 
 function printUsage() {
   console.log('Usage:');
-  console.log('  openclaw-templates [--openclaw-dir <path>] init [--force]');
-  console.log('  openclaw-templates [--openclaw-dir <path>] pull-agents');
-  console.log('  openclaw-templates [--openclaw-dir <path>] doctor');
-  console.log('  openclaw-templates [--openclaw-dir <path>] build [workspace] [--overwrite] [--wipe] [--force]');
+  console.log('  openclaw-templates [--openclaw-dir <path>] [--templates <path>] init [--force]');
+  console.log('  openclaw-templates [--openclaw-dir <path>] [--templates <path>] pull-agents');
+  console.log('  openclaw-templates [--openclaw-dir <path>] [--templates <path>] doctor');
+  console.log(
+    '  openclaw-templates [--openclaw-dir <path>] [--templates <path>] build [workspace] [--overwrite] [--wipe] [--force]',
+  );
 }
 
-function resolveOpenclawDir(openclawDirOption, homeDir) {
-  if (typeof openclawDirOption !== 'string' || openclawDirOption.trim() === '') {
-    return path.join(homeDir, '.openclaw');
+function resolvePathOption(pathOption, defaultPath, homeDir) {
+  if (typeof pathOption !== 'string' || pathOption.trim() === '') {
+    return defaultPath;
   }
 
-  const trimmed = openclawDirOption.trim();
+  const trimmed = pathOption.trim();
   if (trimmed === '~') {
     return homeDir;
   }
@@ -30,14 +32,23 @@ function resolveOpenclawDir(openclawDirOption, homeDir) {
   return path.resolve(trimmed);
 }
 
-function getInitPaths(openclawDirOption) {
+function resolveOpenclawDir(openclawDirOption, homeDir) {
+  return resolvePathOption(openclawDirOption, path.join(homeDir, '.openclaw'), homeDir);
+}
+
+function resolveTemplateDir(templateDirOption, homeDir) {
+  return resolvePathOption(templateDirOption, path.join(homeDir, '.openclaw-templates'), homeDir);
+}
+
+function getInitPaths(openclawDirOption, templateDirOption) {
   const homeDir = os.homedir();
   const openclawDir = resolveOpenclawDir(openclawDirOption, homeDir);
+  const targetDir = resolveTemplateDir(templateDirOption, homeDir);
   const templatesRoot = path.resolve(__dirname, '..', 'templates');
   return {
     homeDir,
     openclawDir,
-    targetDir: path.join(homeDir, '.openclaw-templates'),
+    targetDir,
     openclawConfigPath: path.join(openclawDir, 'openclaw.json'),
     templatesRoot,
     baseTemplatesDir: path.join(templatesRoot, '.base'),
@@ -191,9 +202,9 @@ function assertIncludesTemplatesDir(includesTemplatesDir) {
   }
 }
 
-function initCommand(force, openclawDirOption) {
+function initCommand(force, openclawDirOption, templateDirOption) {
   const { openclawDir, targetDir, baseTemplatesDir, includesTemplatesDir, openclawConfigPath } =
-    getInitPaths(openclawDirOption);
+    getInitPaths(openclawDirOption, templateDirOption);
   const agentNames = getAgentNames(openclawConfigPath, openclawDir);
   const entrypointTemplateFiles = getEntrypointTemplateFiles(baseTemplatesDir);
   assertIncludesTemplatesDir(includesTemplatesDir);
@@ -223,9 +234,9 @@ function initCommand(force, openclawDirOption) {
   console.log(`Initialized ${targetDir}`);
 }
 
-function updateCommand(openclawDirOption) {
+function updateCommand(openclawDirOption, templateDirOption) {
   const { openclawDir, targetDir, baseTemplatesDir, includesTemplatesDir, openclawConfigPath } =
-    getInitPaths(openclawDirOption);
+    getInitPaths(openclawDirOption, templateDirOption);
   const agentNames = getAgentNames(openclawConfigPath, openclawDir);
   const entrypointTemplateFiles = getEntrypointTemplateFiles(baseTemplatesDir);
   assertIncludesTemplatesDir(includesTemplatesDir);
@@ -402,8 +413,9 @@ function buildCommand(
   workspaceArg,
   allowExternalWorkspacePath,
   openclawDirOption,
+  templateDirOption,
 ) {
-  const { openclawDir, targetDir, openclawConfigPath } = getInitPaths(openclawDirOption);
+  const { openclawDir, targetDir, openclawConfigPath } = getInitPaths(openclawDirOption, templateDirOption);
   const agentEntries = selectBuildTargets(
     getAgentEntries(openclawConfigPath, openclawDir),
     workspaceArg,
@@ -488,8 +500,11 @@ function buildCommand(
   console.log(`Built ${totalFiles} files across ${agentEntries.length} workspace(s); skipped ${skippedFiles}.`);
 }
 
-function doctorCommand(openclawDirOption) {
-  const { openclawDir, openclawConfigPath, baseTemplatesDir, includesTemplatesDir } = getInitPaths(openclawDirOption);
+function doctorCommand(openclawDirOption, templateDirOption) {
+  const { openclawDir, openclawConfigPath, baseTemplatesDir, includesTemplatesDir } = getInitPaths(
+    openclawDirOption,
+    templateDirOption,
+  );
   const parsed = parseOpenclawConfig(openclawConfigPath);
   const list = parsed.agents.list;
   const agentNames = getAgentNames(openclawConfigPath, openclawDir);
@@ -521,23 +536,24 @@ function buildProgram() {
   program.name('openclaw-templates');
   program.showHelpAfterError();
   program.option('--openclaw-dir <path>', 'Path to OpenClaw directory (default: ~/.openclaw)');
+  program.option('--templates <path>', 'Path to templates directory (default: ~/.openclaw-templates)');
 
   program
     .command('init')
-    .option('--force', 'Overwrite existing ~/.openclaw-templates')
+    .option('--force', 'Overwrite existing template directory')
     .action(function action(options) {
-      const { openclawDir } = this.optsWithGlobals();
-      initCommand(Boolean(options.force), openclawDir);
+      const { openclawDir, templates } = this.optsWithGlobals();
+      initCommand(Boolean(options.force), openclawDir, templates);
     });
 
   program.command('pull-agents').action(function action() {
-    const { openclawDir } = this.optsWithGlobals();
-    updateCommand(openclawDir);
+    const { openclawDir, templates } = this.optsWithGlobals();
+    updateCommand(openclawDir, templates);
   });
 
   program.command('doctor').action(function action() {
-    const { openclawDir } = this.optsWithGlobals();
-    doctorCommand(openclawDir);
+    const { openclawDir, templates } = this.optsWithGlobals();
+    doctorCommand(openclawDir, templates);
   });
 
   program
@@ -547,8 +563,15 @@ function buildProgram() {
     .option('--wipe', 'Delete workspace contents before building')
     .option('--force', 'Allow explicit workspace paths outside ~/.openclaw')
     .action(function action(workspace, options) {
-      const { openclawDir } = this.optsWithGlobals();
-      buildCommand(Boolean(options.overwrite), Boolean(options.wipe), workspace, Boolean(options.force), openclawDir);
+      const { openclawDir, templates } = this.optsWithGlobals();
+      buildCommand(
+        Boolean(options.overwrite),
+        Boolean(options.wipe),
+        workspace,
+        Boolean(options.force),
+        openclawDir,
+        templates,
+      );
     });
 
   return program;
