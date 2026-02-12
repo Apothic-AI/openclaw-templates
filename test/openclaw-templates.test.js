@@ -16,8 +16,7 @@ function makeTempHome(t) {
   return tempHome;
 }
 
-function writeOpenclawConfig(homeDir, config) {
-  const openclawDir = path.join(homeDir, '.openclaw');
+function writeOpenclawConfig(homeDir, config, openclawDir = path.join(homeDir, '.openclaw')) {
   fs.mkdirSync(openclawDir, { recursive: true });
   fs.writeFileSync(path.join(openclawDir, 'openclaw.json'), `${JSON.stringify(config, null, 2)}\n`, 'utf8');
 }
@@ -77,10 +76,13 @@ test('help output includes all commands and build flags', () => {
   });
 
   assert.equal(result.status, 0);
-  assert.match(result.stdout, /openclaw-templates init \[--force\]/);
-  assert.match(result.stdout, /openclaw-templates pull-agents/);
-  assert.match(result.stdout, /openclaw-templates doctor/);
-  assert.match(result.stdout, /openclaw-templates build \[workspace\] \[--overwrite\] \[--wipe\] \[--force\]/);
+  assert.match(result.stdout, /openclaw-templates \[--openclaw-dir <path>\] init \[--force\]/);
+  assert.match(result.stdout, /openclaw-templates \[--openclaw-dir <path>\] pull-agents/);
+  assert.match(result.stdout, /openclaw-templates \[--openclaw-dir <path>\] doctor/);
+  assert.match(
+    result.stdout,
+    /openclaw-templates \[--openclaw-dir <path>\] build \[workspace\] \[--overwrite\] \[--wipe\] \[--force\]/,
+  );
 });
 
 test('doctor fails when config file is missing', (t) => {
@@ -379,4 +381,28 @@ test('commands use HOME override and write only into the temp home', (t) => {
   const targetDir = path.join(homeDir, '.openclaw-templates');
   assert.ok(fs.existsSync(targetDir));
   assert.match(result.stdout, new RegExp(targetDir.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')));
+});
+
+test('global --openclaw-dir overrides default config and workspace root', (t) => {
+  const homeDir = makeTempHome(t);
+  const customOpenclawDir = path.join(homeDir, 'custom-openclaw');
+  const customConfig = {
+    agents: {
+      defaults: {
+        workspace: 'workspace',
+      },
+      list: [
+        { id: 'main' },
+        { id: 'alpha-id', workspace: 'workspace-alpha' },
+      ],
+    },
+  };
+  writeOpenclawConfig(homeDir, customConfig, customOpenclawDir);
+
+  runCli(homeDir, ['--openclaw-dir', customOpenclawDir, 'doctor']);
+  runCli(homeDir, ['--openclaw-dir', customOpenclawDir, 'init']);
+  runCli(homeDir, ['--openclaw-dir', customOpenclawDir, 'build', 'alpha-id']);
+
+  assert.ok(fs.existsSync(path.join(customOpenclawDir, 'workspace-alpha', 'AGENTS.md')));
+  assert.equal(fs.existsSync(path.join(homeDir, '.openclaw', 'workspace-alpha', 'AGENTS.md')), false);
 });

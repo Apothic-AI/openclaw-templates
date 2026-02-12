@@ -2,12 +2,12 @@
 
 CLI for managing and building OpenClaw workspace include templates.
 
-`openclaw-templates` reads `~/.openclaw/openclaw.json`, prepares per-agent template trees in `~/.openclaw-templates`, and builds rendered files into agent workspaces using [`markdown-include`](https://www.npmjs.com/package/markdown-include).
+`openclaw-templates` reads `<openclaw-dir>/openclaw.json` (default: `~/.openclaw/openclaw.json`), prepares per-agent template trees in `~/.openclaw-templates`, and builds rendered files into agent workspaces using [`markdown-include`](https://www.npmjs.com/package/markdown-include).
 
 ## Features
 
 - Entrypoint templates for all OpenClaw workspace .md files.
-- Uses agent values from `~/.openclaw/openclaw.json` to discover agent workspaces.
+- Uses agent values from `<openclaw-dir>/openclaw.json` (default: `~/.openclaw/openclaw.json`) to discover agent workspaces.
 - Reuses shared include fragments from `~/.openclaw-templates/.includes/**`.
 - Builds recursively (files + subdirectories).
 - Compiles all markdown files that contain `#include "..."` tags.
@@ -118,7 +118,7 @@ code ~/.openclaw-templates
 
 ### Build
 
-Once your templates meet your standards you can build them back into your `~/.openclaw` directory.
+Once your templates meet your standards you can build them back into your OpenClaw directory (default: `~/.openclaw`).
 
 **Build all your templates:**
 
@@ -149,7 +149,8 @@ and you will now see their template structures in `~/.openclaw-templates`
 - Node.js (tested on Node 25; CI runs Node 22)
 - pnpm
 - Existing OpenClaw config at:
-  - `~/.openclaw/openclaw.json`
+  - default: `~/.openclaw/openclaw.json`
+  - or pass `--openclaw-dir <path>`
 
 ### Local development (this repo)
 
@@ -167,19 +168,25 @@ openclaw-templates --help
 ## Full Usage
 
 ```text
-openclaw-templates init [--force]
-openclaw-templates pull-agents
-openclaw-templates doctor
-openclaw-templates build [workspace] [--overwrite] [--wipe] [--force]
+openclaw-templates [--openclaw-dir <path>] init [--force]
+openclaw-templates [--openclaw-dir <path>] pull-agents
+openclaw-templates [--openclaw-dir <path>] doctor
+openclaw-templates [--openclaw-dir <path>] build [workspace] [--overwrite] [--wipe] [--force]
 ```
 
 ## Commands
+
+### Global options
+
+- `--openclaw-dir <path>`
+  - OpenClaw root directory containing `openclaw.json`
+  - defaults to `~/.openclaw`
 
 ### `init [--force]`
 
 Initializes `~/.openclaw-templates` from the repository templates.
 
-- Reads agent IDs/workspaces from `~/.openclaw/openclaw.json`.
+- Reads agent IDs/workspaces from `<openclaw-dir>/openclaw.json` (default: `~/.openclaw/openclaw.json`).
 - Copies `templates/.includes` to `~/.openclaw-templates/.includes`.
 - Creates one directory per agent id in `~/.openclaw-templates/<agent-id>/`.
 - Copies all `templates/.base/*.md` entrypoints into each agent directory.
@@ -205,7 +212,7 @@ Outputs a summary with agent count and template count.
 
 ### `pull-agents`
 
-Adds templates for agent IDs that are present in `~/.openclaw/openclaw.json` but not yet present in `~/.openclaw-templates`.
+Adds templates for agent IDs that are present in `<openclaw-dir>/openclaw.json` but not yet present in `~/.openclaw-templates`.
 
 Behavior:
 
@@ -228,7 +235,7 @@ Selection:
 
 Path safety:
 
-- If `workspace` is passed as a path outside `~/.openclaw`, build is blocked.
+- If `workspace` is passed as a path outside `<openclaw-dir>` (default: `~/.openclaw`), build is blocked.
 - Use `--force` to allow that explicit external workspace-path target.
 
 Build behavior:
@@ -248,7 +255,7 @@ Flags:
   - clears workspace contents before build
   - preserves `.git` directory
 - `--force`
-  - with explicit workspace-path selector, allows targets outside `~/.openclaw`
+  - with explicit workspace-path selector, allows targets outside `<openclaw-dir>`
 
 ## Git Safety Guarantees
 
@@ -287,6 +294,9 @@ openclaw-templates build tom-assistant
 
 # 6) Build a single explicit workspace path (outside ~/.openclaw requires --force)
 openclaw-templates build /path/to/workspace --force
+
+# 7) Use a non-default OpenClaw directory
+openclaw-templates --openclaw-dir /path/to/openclaw doctor
 ```
 
 ## Development
